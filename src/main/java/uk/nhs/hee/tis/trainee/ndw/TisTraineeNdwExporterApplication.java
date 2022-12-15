@@ -19,17 +19,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package uk.nhs.hee.tis.template;
+package uk.nhs.hee.tis.trainee.ndw;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootTest
-//TODO: Update package and class name.
-class TemplateApplicationTest {
+@SpringBootApplication
+public class TisTraineeNdwExporterApplication {
 
-  @Test
-  void contextLoads() {
-
+  public static void main(String[] args) {
+    SpringApplication.run(TisTraineeNdwExporterApplication.class);
   }
 }
