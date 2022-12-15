@@ -5,12 +5,21 @@ on:
     branches:
       - main
 
+#jobs:
+#  ci-cd:
+#    name: Build and deploy
+#    uses: health-education-england/.github/.github/workflows/ci-cd-gradle.yml@main
+#    with:
+#      cluster-prefix: trainee
+#    secrets:
+#      ecr-username: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#      ecr-password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#      sonar-token: ${{ secrets.SONAR_TOKEN }}
+
 jobs:
-  ci-cd:
-    name: Build and deploy
-    uses: health-education-england/.github/.github/workflows/ci-cd-gradle.yml@main
-    with:
-      cluster-prefix: trainee
+  # TODO: delete this build job and uncomment the ci-cd job once ready to deploy.
+  build:
+    uses: health-education-england/.github/.github/workflows/build-gradle.yml@main
     secrets:
       ecr-username: ${{ secrets.AWS_ACCESS_KEY_ID }}
       ecr-password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
