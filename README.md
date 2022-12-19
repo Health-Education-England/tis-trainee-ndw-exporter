@@ -23,10 +23,16 @@ TODO
 
 #### Environmental Variables
 
-| Name | Description                                               | Default   |
-|------|-----------------------------------------------------------|-----------|
-| TODO |                                                           |           | 
-
+| Name | Description                                   | Default   |
+|------|-----------------------------------------------|-----------|
+| **Logging:**                 |                                               |           |
+| SENTRY_DSN                   | A Sentry error monitoring Data Source Name.   |           |
+| SENTRY_ENVIRONMENT           | The environment to log Sentry events against. | local     |
+| LOGGING_ROOT                 | Root logging level.                           | INFO      |
+| LOGGING_EVENT                | NDW event logging level.                      | DEBUG     |
+| LOGGING_SERVICE              | NDW service logging level.                    | DEBUG     |
+| **Queues:**                  |                                               |           |
+| NDW_FORM_QUEUE_URL           | Queue to receive AWS S3 Form events.          |           |
 
 ### Usage Examples
 TODO

@@ -8,7 +8,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationContext;
 
-public class FormServiceTest {
+/**
+ * Test class for the Form Service.
+ */
+class FormServiceTest {
 
   private FormService service;
 
