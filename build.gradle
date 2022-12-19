@@ -22,9 +22,16 @@ repositories {
   mavenCentral()
 }
 
+dependencyManagement {
+  imports {
+    mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:2.4.2")
+  }
+}
+
 dependencies {
   // Spring Boot starters
   implementation "org.springframework.boot:spring-boot-starter-actuator"
+  implementation "org.springframework.boot:spring-boot-starter-validation"
   implementation "org.springframework.boot:spring-boot-starter-web"
   testImplementation "org.springframework.boot:spring-boot-starter-test"
 
@@ -42,6 +49,29 @@ dependencies {
   ext.sentryVersion = "6.9.2"
   implementation "io.sentry:sentry-spring-boot-starter:$sentryVersion"
   implementation "io.sentry:sentry-logback:$sentryVersion"
+
+  //might not need this just yet, only included for the restTemplate
+  implementation "org.apache.httpcomponents.client5:httpclient5:5.2.1"
+
+  // Amazon SQS
+  implementation "io.awspring.cloud:spring-cloud-starter-aws"
+  implementation "io.awspring.cloud:spring-cloud-starter-aws-messaging"
+
+  implementation "org.springframework.cloud:spring-cloud-starter-bootstrap"
+
+  ext.testContainersVersion = "1.17.6"
+  testImplementation "org.springframework.cloud:spring-cloud-starter"
+  testImplementation "org.springframework.cloud:spring-cloud-contract-wiremock"
+  testImplementation "org.testcontainers:testcontainers:${testContainersVersion}"
+  testImplementation "org.testcontainers:junit-jupiter:${testContainersVersion}"
+}
+ext {
+  set('springCloudVersion', "2021.0.3")
+}
+dependencyManagement {
+  imports {
+    mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+  }
 }
 
 checkstyle {

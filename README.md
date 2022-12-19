@@ -1,4 +1,4 @@
-# TIS Microservice Template
+# TIS Trainee Self-Service NDW Exporter
 
 [![Build Status][build-badge]][build-href]
 [![License][license-badge]][license-href]

@@ -6,3 +6,20 @@ server:
 sentry:
   dsn: ${SENTRY_DSN:}
   environment: ${SENTRY_ENVIRONMENT:}
+
+application:
+  aws:
+    sqs:
+      form: ${NDW_FORM_QUEUE_URL:}
+
+logging:
+  level:
+    root: ${LOGGING_ROOT:INFO}
+    uk:
+      nhs:
+        hee:
+          tis:
+            trainee:
+              ndw:
+                event: ${LOGGING_EVENT:DEBUG}
+                service: ${LOGGING_SERVICE:DEBUG}
