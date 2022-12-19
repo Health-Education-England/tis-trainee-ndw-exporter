@@ -50,9 +50,6 @@ dependencies {
   implementation "io.sentry:sentry-spring-boot-starter:$sentryVersion"
   implementation "io.sentry:sentry-logback:$sentryVersion"
 
-  //might not need this just yet, only included for the restTemplate
-  implementation "org.apache.httpcomponents.client5:httpclient5:5.2.1"
-
   // Amazon SQS
   implementation "io.awspring.cloud:spring-cloud-starter-aws"
   implementation "io.awspring.cloud:spring-cloud-starter-aws-messaging"

@@ -14,8 +14,8 @@ public class FormListener {
 
   private final FormService formService;
 
-  FormListener(FormService formRService) {
-    this.formService = formRService;
+  FormListener(FormService formService) {
+    this.formService = formService;
   }
 
   @SqsListener(value = "${application.aws.sqs.form}", deletionPolicy = ON_SUCCESS)

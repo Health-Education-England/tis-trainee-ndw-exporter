@@ -5,6 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
+/**
+ * A service for processing S3 Form events.
+ */
 @Slf4j
 @Service
 public class FormService {

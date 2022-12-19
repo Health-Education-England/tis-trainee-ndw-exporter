@@ -11,6 +11,9 @@ import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.converter.MessageConverter;
 
 
+/**
+ * SQS configuration beans.
+ */
 @Configuration
 public class AmazonSqsConfig {
 
