@@ -23,7 +23,7 @@ public class FormService {
    *
    * @param event The S3 event to process.
    */
-  public void processS3Event(S3EventNotification event) {
-    log.info("Process S3 event accordingly");
+  public void processFormEvent(S3EventNotification event) {
+    log.info("Now process S3 event");
   }
 }

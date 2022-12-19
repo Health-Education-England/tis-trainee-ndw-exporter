@@ -43,6 +43,6 @@ class FormListenerTest {
 
     listener.getS3Event(event);
 
-    verify(service).processS3Event(event);
+    verify(service).processFormEvent(event);
   }
 }

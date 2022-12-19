@@ -27,7 +27,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * TIS Trainee NDW Exporter
  *
- * Export TSS form data to the NDW.
+ * <p>Export TSS form data to the NDW.
  */
 @SpringBootApplication
 public class TisTraineeNdwExporterApplication {
