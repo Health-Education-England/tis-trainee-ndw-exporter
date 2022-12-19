@@ -19,19 +19,8 @@ public class FormListener {
   }
 
   @SqsListener(value = "${application.aws.sqs.form}", deletionPolicy = ON_SUCCESS)
-  void getS3Event(/* Message message */ S3EventNotification event) {
-    //log.debug("Received Message {}.", message);
-    //S3EventNotification event = S3EventNotification.parseJson(message.getBody());
-    log.debug("Parsed to S3 event {}.", event.toJson());
-
-    if (event.getRecords() == null) {
-      return;
-    }
-//  if (event.getRecords().size() > 0) {
-//    String bucket = event.getRecords().get(0).getS3().getBucket().getName();
-//    String key = event.getRecords().get(0).getS3().getObject().getKey();
-//  }
-
+  void getS3Event(S3EventNotification event) {
+    log.debug("Received S3 event message {}.", event.toJson());
     formService.processS3Event(event);
   }
 

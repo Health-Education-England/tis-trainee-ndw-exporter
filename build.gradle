@@ -1,6 +1,6 @@
 plugins {
   id "java"
-  id "org.springframework.boot" version "3.0.0"
+  id "org.springframework.boot" version "2.7.5" //FIXME: FormListener.getS3Event() does not fire with v3.0.0
   id "io.spring.dependency-management" version "1.1.0"
 
   // Code quality plugins
@@ -56,8 +56,6 @@ dependencies {
   // Amazon SQS
   implementation "io.awspring.cloud:spring-cloud-starter-aws"
   implementation "io.awspring.cloud:spring-cloud-starter-aws-messaging"
-
-  implementation "org.springframework.cloud:spring-cloud-starter-bootstrap"
 
   ext.testContainersVersion = "1.17.6"
   testImplementation "org.springframework.cloud:spring-cloud-starter"

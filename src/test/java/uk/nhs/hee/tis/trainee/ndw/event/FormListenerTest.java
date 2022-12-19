@@ -26,7 +26,16 @@ class FormListenerTest {
 
     String json =
         """
-        {"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"eu-west-2","eventTime":"2022-12-15T15:51:25.372Z","eventName":"ObjectCreated:Put","userIdentity":{"principalId":"AWS:code:guid"},"requestParameters":{"sourceIPAddress":"1.1.1.1"},"responseElements":{"x-amz-request-id":"REQ_ID","x-amz-id-2":"ANOTHER_ID"},"s3":{"s3SchemaVersion":"1.0","configurationId":"tf-s3-topic-20221214190721304400000001","bucket":{"name":"tis-test-bucket","ownerIdentity":{"principalId":"PRINCIPLE"},"arn":"arn:aws:s3:::tis-trainee-documents-test"},"object":{"key":"47165/forms/formr-a/file.json","size":1081,"eTag":"TAG","versionId":"bYTJtCjXR_S2apA.8IqpxiVm_zM9HUkM","sequencer":"SEQUENCER"}}}]
+        {"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"eu-west-2",
+        "eventTime":"2022-12-15T15:51:25.372Z","eventName":"ObjectCreated:Put",
+        "userIdentity":{"principalId":"AWS:code:guid"},
+        "requestParameters":{"sourceIPAddress":"1.1.1.1"},
+        "responseElements":{"x-amz-request-id":"REQ_ID","x-amz-id-2":"ANOTHER_ID"},
+        "s3":{"s3SchemaVersion":"1.0","configurationId":"tf-s3-topic-20221214190721304400000001",
+        "bucket":{"name":"tis-test-bucket","ownerIdentity":{"principalId":"PRINCIPLE"},
+        "arn":"arn:aws:s3:::tis-trainee-documents-test"},
+        "object":{"key":"47165/forms/formr-a/file.json","size":1081,"eTag":"TAG",
+        "versionId":"bYTJtCjXR_S2apA.8IqpxiVm_zM9HUkM","sequencer":"SEQUENCER"}}}]}
         """;
     S3EventNotification.S3EventNotificationRecord record
         = Jackson.fromJsonString(json, S3EventNotification.S3EventNotificationRecord.class);
