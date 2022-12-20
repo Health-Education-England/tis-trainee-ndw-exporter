@@ -19,17 +19,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package uk.nhs.hee.tis.template;
+package uk.nhs.hee.tis.trainee.ndw;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+
+import com.amazonaws.services.sqs.AmazonSQSAsync;
+import io.awspring.cloud.autoconfigure.messaging.SqsAutoConfiguration;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.ApplicationContext;
 
-@SpringBootTest
-//TODO: Update package and class name.
-class TemplateApplicationTest {
+@SpringBootTest(properties = { "cloud.aws.region.static=eu-west-2" })
+@EnableAutoConfiguration(exclude = SqsAutoConfiguration.class)
+class TisTraineeNdwExporterApplicationTest {
+
+  @MockBean
+  private AmazonSQSAsync amazonSqsAsync;
+
+  @Autowired
+  ApplicationContext context;
 
   @Test
   void contextLoads() {
-
+    assertThat("Unexpected bean.", context.getBean(AmazonSQSAsync.class), is(amazonSqsAsync));
   }
 }

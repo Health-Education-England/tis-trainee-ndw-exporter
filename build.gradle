@@ -1,6 +1,6 @@
 plugins {
   id "java"
-  id "org.springframework.boot" version "3.0.0"
+  id "org.springframework.boot" version "2.7.5"
   id "io.spring.dependency-management" version "1.1.0"
 
   // Code quality plugins
@@ -9,8 +9,7 @@ plugins {
   id "org.sonarqube" version "3.5.0.2730"
 }
 
-// TODO: Update group to end with "admin" or "trainee".
-group = "uk.nhs.tis"
+group = "uk.nhs.hee.tis.trainee"
 version = "0.0.1"
 
 configurations {
@@ -23,9 +22,17 @@ repositories {
   mavenCentral()
 }
 
+dependencyManagement {
+  imports {
+    mavenBom "org.springframework.cloud:spring-cloud-dependencies:2021.0.3"
+    mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:2.4.2")
+  }
+}
+
 dependencies {
   // Spring Boot starters
   implementation "org.springframework.boot:spring-boot-starter-actuator"
+  implementation "org.springframework.boot:spring-boot-starter-validation"
   implementation "org.springframework.boot:spring-boot-starter-web"
   testImplementation "org.springframework.boot:spring-boot-starter-test"
 
@@ -43,6 +50,16 @@ dependencies {
   ext.sentryVersion = "6.9.2"
   implementation "io.sentry:sentry-spring-boot-starter:$sentryVersion"
   implementation "io.sentry:sentry-logback:$sentryVersion"
+
+  // Amazon SQS
+  implementation "io.awspring.cloud:spring-cloud-starter-aws"
+  implementation "io.awspring.cloud:spring-cloud-starter-aws-messaging"
+
+  ext.testContainersVersion = "1.17.6"
+  testImplementation "org.springframework.cloud:spring-cloud-starter"
+  testImplementation "org.springframework.cloud:spring-cloud-contract-wiremock"
+  testImplementation "org.testcontainers:testcontainers:${testContainersVersion}"
+  testImplementation "org.testcontainers:junit-jupiter:${testContainersVersion}"
 }
 
 checkstyle {
@@ -68,8 +85,7 @@ sonarqube {
     property "sonar.host.url", "https://sonarcloud.io"
     property "sonar.login", System.getenv("SONAR_TOKEN")
     property "sonar.organization", "health-education-england"
-    // TODO: Update sonar.projectKey to real value.
-    property "sonar.projectKey", "Health-Education-England_tis-microservice-template"
+    property "sonar.projectKey", "Health-Education-England_tis-trainee-ndw-exporter"
 
     property "sonar.java.checkstyle.reportPaths",
       "build/reports/checkstyle/main.xml,build/reports/checkstyle/test.xml"
