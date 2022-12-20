@@ -2,10 +2,11 @@ package uk.nhs.hee.tis.trainee.ndw.event;
 
 import static io.awspring.cloud.messaging.listener.SqsMessageDeletionPolicy.ON_SUCCESS;
 
-import com.amazonaws.services.s3.event.S3EventNotification;
 import io.awspring.cloud.messaging.listener.annotation.SqsListener;
+import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 
 /**
@@ -25,11 +26,11 @@ public class FormListener {
    * Listen for S3 Events on the SQS queue.
    *
    * @param event the S3 Event
+   * @throws IOException when the form contents could not be read, or were not correctly structured.
    */
   @SqsListener(value = "${application.aws.sqs.form}", deletionPolicy = ON_SUCCESS)
-  void getS3Event(S3EventNotification event) {
-    log.debug("Received S3 event message {}.", event.toJson());
+  void getFormEvent(FormEventDto event) throws IOException {
+    log.debug("Received form event {}.", event);
     formService.processFormEvent(event);
   }
-
 }

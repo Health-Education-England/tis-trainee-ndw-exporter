@@ -1,6 +1,6 @@
 plugins {
   id "java"
-  id "org.springframework.boot" version "2.7.5" //FIXME: FormListener.getS3Event() does not fire with v3.0.0
+  id "org.springframework.boot" version "2.7.5"
   id "io.spring.dependency-management" version "1.1.0"
 
   // Code quality plugins
@@ -24,6 +24,7 @@ repositories {
 
 dependencyManagement {
   imports {
+    mavenBom "org.springframework.cloud:spring-cloud-dependencies:2021.0.3"
     mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:2.4.2")
   }
 }
@@ -59,14 +60,6 @@ dependencies {
   testImplementation "org.springframework.cloud:spring-cloud-contract-wiremock"
   testImplementation "org.testcontainers:testcontainers:${testContainersVersion}"
   testImplementation "org.testcontainers:junit-jupiter:${testContainersVersion}"
-}
-ext {
-  set('springCloudVersion', "2021.0.3")
-}
-dependencyManagement {
-  imports {
-    mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
-  }
 }
 
 checkstyle {

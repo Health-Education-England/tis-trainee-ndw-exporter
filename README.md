@@ -23,16 +23,16 @@ TODO
 
 #### Environmental Variables
 
-| Name | Description                                   | Default   |
-|------|-----------------------------------------------|-----------|
-| **Logging:**                 |                                               |           |
-| SENTRY_DSN                   | A Sentry error monitoring Data Source Name.   |           |
-| SENTRY_ENVIRONMENT           | The environment to log Sentry events against. | local     |
-| LOGGING_ROOT                 | Root logging level.                           | INFO      |
-| LOGGING_EVENT                | NDW event logging level.                      | DEBUG     |
-| LOGGING_SERVICE              | NDW service logging level.                    | DEBUG     |
-| **Queues:**                  |                                               |           |
-| NDW_FORM_QUEUE_URL           | Queue to receive AWS S3 Form events.          |           |
+| Name               | Description                                   | Default |
+|--------------------|-----------------------------------------------|---------|
+| **Logging:**       |                                               |         |
+| SENTRY_DSN         | A Sentry error monitoring Data Source Name.   |         |
+| SENTRY_ENVIRONMENT | The environment to log Sentry events against. | local   |
+| LOGGING_ROOT       | Root logging level.                           | INFO    |
+| LOGGING_EVENT      | NDW event logging level.                      | DEBUG   |
+| LOGGING_SERVICE    | NDW service logging level.                    | DEBUG   |
+| **Queues:**        |                                               |         |
+| NDW_FORM_QUEUE_URL | Queue to receive AWS S3 Form events.          |         |
 
 ### Usage Examples
 TODO
@@ -64,17 +64,13 @@ This project uses [Semantic Versioning](semver.org).
 This project is license under [The MIT License (MIT)](LICENSE).
 
 [coverage-badge]: https://sonarcloud.io/api/project_badges/measure?project=Health-Education-England_tis-trainee-ndw-exporter&metric=coverage
-
 [coverage-href]: https://sonarcloud.io/component_measures?metric=coverage&id=Health-Education-England_tis-trainee-ndw-exporter
 
 [build-badge]: https://badgen.net/github/checks/health-education-england/tis-trainee-ndw-exporter?label=build&icon=github
-
 [build-href]: https://github.com/Health-Education-England/tis-trainee-ndw-exporter/actions/workflows/ci-cd-workflow.yml
 
 [license-badge]: https://badgen.net/github/license/health-education-england/tis-trainee-ndw-exporter
-
 [license-href]: LICENSE
 
 [quality-gate-badge]: https://sonarcloud.io/api/project_badges/measure?project=Health-Education-England_tis-trainee-ndw-exporter&metric=alert_status
-
 [quality-gate-href]: https://sonarcloud.io/summary/new_code?id=Health-Education-England_tis-trainee-ndw-exporter
