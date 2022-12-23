@@ -26,6 +26,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
@@ -37,8 +38,8 @@ import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
 @Service
 public class FormService {
 
-  private static final String FORM_ID_FIELD = "_id";
-  private static final String FORM_CLASS_FIELD = "_class";
+  private static final String FORM_ID_CONTENT_FIELD = "id";
+  private static final String FORM_TYPE_METADATA_FIELD = "formtype";
 
   private final AmazonS3 amazonS3;
   private final ObjectMapper mapper;
@@ -67,12 +68,12 @@ public class FormService {
     }
 
     JsonNode content = mapper.readTree(document.getObjectContent());
+    Map<String, String> userMetadata = document.getObjectMetadata().getUserMetadata();
 
-    if (content.has(FORM_ID_FIELD) && content.has(FORM_CLASS_FIELD)) {
-      // TODO: ID can be in different formats depending whether the form was ever saved as draft.
-      String formId = content.get(FORM_ID_FIELD).textValue();
-      String formType = content.get(FORM_CLASS_FIELD).textValue();
-      log.info("Retrieved form id {} of type {}", formId, formType);
+    if (content.has(FORM_ID_CONTENT_FIELD) && userMetadata.containsKey(FORM_TYPE_METADATA_FIELD)) {
+      String formId = content.get(FORM_ID_CONTENT_FIELD).textValue();
+      String formType = userMetadata.get(FORM_TYPE_METADATA_FIELD);
+      log.info("Retrieved form id {} of type {}.", formId, formType);
     } else {
       log.error("File {}/{} did not have the expected form structure.", event.getBucket(),
           event.getKey());

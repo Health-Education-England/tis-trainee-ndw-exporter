@@ -48,7 +48,8 @@ class FormServiceTest {
   private static final String VERSION = "123";
 
   private static final String FORM_ID = "456";
-  private static final String FORM_CLASS = "uk.nhs.tis.trainee.FormClass";
+  private static final String FORM_TYPE_KEY = "formtype";
+  private static final String FORM_TYPE_VALUE = "form-type-value";
 
   private FormService service;
 
@@ -69,37 +70,11 @@ class FormServiceTest {
 
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
 
     String content = """
           {
-            "_class": "%s"
-          }
-        """.formatted(FORM_CLASS);
-
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
-
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-      assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
-    }
-  }
-
-  @Test
-  void shouldThrowExceptionWhenNoFormClassFound() throws IOException {
-    FormEventDto formEvent = new FormEventDto();
-    formEvent.setBucket(BUCKET);
-    formEvent.setKey(KEY);
-    formEvent.setVersionId(VERSION);
-
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-
-    String content = """
-          {
-            "_id": "%s"
+            "not-id": "%s"
           }
         """.formatted(FORM_ID);
 
@@ -115,7 +90,7 @@ class FormServiceTest {
   }
 
   @Test
-  void shouldNotThrowExceptionWhenFormIdAndClassFound() throws IOException {
+  void shouldThrowExceptionWhenNoFormTypeFound() throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -123,13 +98,41 @@ class FormServiceTest {
 
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata("not-form-type", FORM_TYPE_VALUE);
 
     String content = """
           {
-            "_id": "%s",
-            "_class": "%s"
+            "id": "%s"
           }
-        """.formatted(FORM_ID, FORM_CLASS);
+        """.formatted(FORM_ID);
+
+    try (S3Object document = new S3Object();
+        InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
+      document.setObjectMetadata(metadata);
+      document.setObjectContent(contentStream);
+
+      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+      assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
+    }
+  }
+
+  @Test
+  void shouldNotThrowExceptionWhenFormIdAndTypeFound() throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+
+    String content = """
+          {
+            "id": "%s"
+          }
+        """.formatted(FORM_ID);
 
     try (S3Object document = new S3Object();
         InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
@@ -151,13 +154,13 @@ class FormServiceTest {
 
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, "latestVersion");
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
 
     String content = """
           {
-            "_id": "%s",
-            "_class": "%s"
+            "id": "%s"
           }
-        """.formatted(FORM_ID, FORM_CLASS);
+        """.formatted(FORM_ID);
 
     try (S3Object document = new S3Object();
         InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
