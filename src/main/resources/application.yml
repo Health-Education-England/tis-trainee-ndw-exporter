@@ -11,6 +11,8 @@ application:
   aws:
     sqs:
       form: ${NDW_FORM_QUEUE_URL:}
+  ndw:
+    endpoint: https://${AZURE_DATA_LAKE_NAME:local}.dfs.core.windows.net/tis
 
 logging:
   level:
@@ -23,3 +25,12 @@ logging:
               ndw:
                 event: ${LOGGING_EVENT:DEBUG}
                 service: ${LOGGING_SERVICE:DEBUG}
+
+spring:
+  cloud:
+    azure:
+      credential:
+        client-id: ${AZURE_CLIENT_ID:}
+        client-secret: ${AZURE_CLIENT_SECRET:}
+      profile:
+        tenant-id: ${AZURE_TENANT_ID:}

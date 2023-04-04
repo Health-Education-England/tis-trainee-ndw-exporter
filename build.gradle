@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "uk.nhs.hee.tis.trainee"
-version = "0.0.2"
+version = "0.1.0"
 
 configurations {
   compileOnly {
@@ -25,7 +25,8 @@ repositories {
 dependencyManagement {
   imports {
     mavenBom "org.springframework.cloud:spring-cloud-dependencies:2021.0.3"
-    mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:2.4.4")
+    mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:2.4.4"
+    mavenBom "com.azure.spring:spring-cloud-azure-dependencies:4.6.0"
   }
 }
 
@@ -54,6 +55,9 @@ dependencies {
   // Amazon SQS
   implementation "io.awspring.cloud:spring-cloud-starter-aws"
   implementation "io.awspring.cloud:spring-cloud-starter-aws-messaging"
+
+  implementation "com.azure.spring:spring-cloud-azure-starter"
+  implementation "com.azure:azure-storage-file-datalake"
 
   ext.testContainersVersion = "1.17.6"
   testImplementation "org.springframework.cloud:spring-cloud-starter"

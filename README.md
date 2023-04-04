@@ -23,16 +23,22 @@ TODO
 
 #### Environmental Variables
 
-| Name               | Description                                   | Default |
-|--------------------|-----------------------------------------------|---------|
-| **Logging:**       |                                               |         |
-| SENTRY_DSN         | A Sentry error monitoring Data Source Name.   |         |
-| SENTRY_ENVIRONMENT | The environment to log Sentry events against. | local   |
-| LOGGING_ROOT       | Root logging level.                           | INFO    |
-| LOGGING_EVENT      | NDW event logging level.                      | DEBUG   |
-| LOGGING_SERVICE    | NDW service logging level.                    | DEBUG   |
-| **Queues:**        |                                               |         |
-| NDW_FORM_QUEUE_URL | Queue to receive AWS S3 Form events.          |         |
+| Name                 | Description                                                 | Default |
+|----------------------|-------------------------------------------------------------|---------|
+| **Azure:**           |                                                             |
+| AZURE_CLIENT_ID      | The client ID for connecting to the NDW Azure instance.     |         |
+| AZURE_CLIENT_SECRET  | The client secret for connecting to the NDW Azure instance. |         |
+| AZURE_TENANT_ID      | The tenant ID for connecting to the NDW Azure instance.     |         |
+| AZURE_DATA_LAKE_NAME | The name of the NDW data lake to export to.                 | local   |
+| **Logging:**         |                                                             |         |
+| SENTRY_DSN           | A Sentry error monitoring Data Source Name.                 |         |
+| SENTRY_ENVIRONMENT   | The environment to log Sentry events against.               | local   |
+| LOGGING_ROOT         | Root logging level.                                         | INFO    |
+| LOGGING_EVENT        | NDW event logging level.                                    | DEBUG   |
+| LOGGING_SERVICE      | NDW service logging level.                                  | DEBUG   |
+| **Queues:**          |                                                             |         |
+| NDW_FORM_QUEUE_URL   | Queue to receive AWS S3 Form events.                        |         |
+
 
 ### Usage Examples
 TODO
