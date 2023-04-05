@@ -25,6 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Data;
 
+/**
+ * A representation of a form event.
+ */
 @Data
 public class FormEventDto {
 

@@ -23,17 +23,24 @@ package uk.nhs.hee.tis.trainee.ndw.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.Headers;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.azure.storage.file.datalake.DataLakeDirectoryClient;
+import com.azure.storage.file.datalake.DataLakeFileClient;
+import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
@@ -47,22 +54,27 @@ class FormServiceTest {
   private static final String KEY = "abc/123.json";
   private static final String VERSION = "123";
 
-  private static final String FORM_ID = "456";
+  private static final String FORM_NAME_KEY = "name";
+  private static final String FORM_NAME_VALUE = "123.json";
   private static final String FORM_TYPE_KEY = "formtype";
   private static final String FORM_TYPE_VALUE = "form-type-value";
+
+  private static final String FORMR_ROOT = "formr/bronze";
 
   private FormService service;
 
   private AmazonS3 amazonS3;
+  private DataLakeFileSystemClient dataLakeClient;
 
   @BeforeEach
   void setUp() {
     amazonS3 = mock(AmazonS3.class);
-    service = new FormService(amazonS3, new ObjectMapper());
+    dataLakeClient = mock(DataLakeFileSystemClient.class);
+    service = new FormService(amazonS3, dataLakeClient);
   }
 
   @Test
-  void shouldThrowExceptionWhenNoFormIdFound() throws IOException {
+  void shouldThrowExceptionWhenNoFormNameFound() throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -70,16 +82,11 @@ class FormServiceTest {
 
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata("not-name", FORM_NAME_VALUE);
     metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
 
-    String content = """
-          {
-            "not-id": "%s"
-          }
-        """.formatted(FORM_ID);
-
     try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
+        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
       document.setObjectMetadata(metadata);
       document.setObjectContent(contentStream);
 
@@ -98,16 +105,11 @@ class FormServiceTest {
 
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
     metadata.addUserMetadata("not-form-type", FORM_TYPE_VALUE);
 
-    String content = """
-          {
-            "id": "%s"
-          }
-        """.formatted(FORM_ID);
-
     try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
+        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
       document.setObjectMetadata(metadata);
       document.setObjectContent(contentStream);
 
@@ -118,7 +120,7 @@ class FormServiceTest {
   }
 
   @Test
-  void shouldNotThrowExceptionWhenFormIdAndTypeFound() throws IOException {
+  void shouldNotThrowExceptionWhenFormNameAndTypeFound() throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -126,16 +128,11 @@ class FormServiceTest {
 
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
     metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
 
-    String content = """
-          {
-            "id": "%s"
-          }
-        """.formatted(FORM_ID);
-
     try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
+        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
       document.setObjectMetadata(metadata);
       document.setObjectContent(contentStream);
 
@@ -154,16 +151,11 @@ class FormServiceTest {
 
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, "latestVersion");
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
     metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
 
-    String content = """
-          {
-            "id": "%s"
-          }
-        """.formatted(FORM_ID);
-
     try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(content.getBytes())) {
+        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
       document.setObjectMetadata(metadata);
       document.setObjectContent(contentStream);
 
@@ -171,5 +163,139 @@ class FormServiceTest {
 
       assertDoesNotThrow(() -> service.processFormEvent(formEvent));
     }
+  }
+
+  @Test
+  void shouldNotExportFormWhenUnsupportedFormType() throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+
+    try (S3Object document = new S3Object();
+        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
+      document.setObjectMetadata(metadata);
+      document.setObjectContent(contentStream);
+
+      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+      service.processFormEvent(formEvent);
+
+      verifyNoInteractions(dataLakeClient);
+    }
+  }
+
+  @Test
+  void shouldExportFormWhenFormTypeIsFormrPartA() throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-a");
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists("part-a")).thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
+
+    byte[] contents = """
+        {
+          "field1": "value1"
+        }
+        """.getBytes(StandardCharsets.UTF_8);
+
+    try (S3Object document = new S3Object();
+        InputStream contentStream = new ByteArrayInputStream(contents)) {
+      document.setObjectMetadata(metadata);
+      document.setObjectContent(contentStream);
+
+      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+      service.processFormEvent(formEvent);
+
+      verify(fileClient).upload(document.getObjectContent(), 0L, true);
+    }
+  }
+
+  @Test
+  void shouldExportFormWhenFormTypeIsFormrPartB() throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-b");
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists("part-b")).thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
+
+    byte[] contents = """
+        {
+          "field1": "value1"
+        }
+        """.getBytes(StandardCharsets.UTF_8);
+
+    try (S3Object document = new S3Object();
+        InputStream contentStream = new ByteArrayInputStream(contents)) {
+      document.setObjectMetadata(metadata);
+      document.setObjectContent(contentStream);
+
+      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+      service.processFormEvent(formEvent);
+
+      verify(fileClient).upload(document.getObjectContent(), 0L, true);
+    }
+  }
+
+  @Test
+  void shouldNotThrowExceptionWhenExportedFormCannotBeClosed() throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-a");
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+
+    InputStream is = mock(InputStream.class);
+    doThrow(IOException.class).when(is).close();
+
+    S3Object document = new S3Object();
+    document.setObjectMetadata(metadata);
+    document.setObjectContent(is);
+
+    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+    assertDoesNotThrow(() -> service.processFormEvent(formEvent));
+
+    verify(is).close();
   }
 }
