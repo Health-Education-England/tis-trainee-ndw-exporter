@@ -29,6 +29,7 @@ import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
 
@@ -42,14 +43,16 @@ public class FormService {
   private static final String FORM_TYPE_METADATA_FIELD = "formtype";
   private static final String NAME_METADATA_FIELD = "name";
 
-  private static final String DATA_LAKE_FORMR_ROOT = "formr/bronze";
-
   private final AmazonS3 amazonS3;
   private final DataLakeFileSystemClient dataLakeClient;
 
-  FormService(AmazonS3 amazonS3, DataLakeFileSystemClient dataLakeClient) {
+  private final String getDataLakeFormrRoot;
+
+  FormService(AmazonS3 amazonS3, DataLakeFileSystemClient dataLakeClient,
+      @Value("${application.ndw.directory}") String directory) {
     this.amazonS3 = amazonS3;
     this.dataLakeClient = dataLakeClient;
+    this.getDataLakeFormrRoot = "formr/" + directory;
   }
 
   /**
@@ -98,10 +101,10 @@ public class FormService {
 
     switch (formType) {
       case "formr-a" -> directoryClient = dataLakeClient
-          .getDirectoryClient(DATA_LAKE_FORMR_ROOT)
+          .getDirectoryClient(getDataLakeFormrRoot)
           .createSubdirectoryIfNotExists("part-a");
       case "formr-b" -> directoryClient = dataLakeClient
-          .getDirectoryClient(DATA_LAKE_FORMR_ROOT)
+          .getDirectoryClient(getDataLakeFormrRoot)
           .createSubdirectoryIfNotExists("part-b");
       default -> {
         log.error("{} is not an exportable form type.", formType);

@@ -13,6 +13,7 @@ application:
       form: ${NDW_FORM_QUEUE_URL:}
   ndw:
     endpoint: https://${AZURE_DATA_LAKE_NAME:local}.dfs.core.windows.net/tis
+    directory: ${AZURE_DATA_LAKE_DIRECTORY:dev}
 
 logging:
   level:

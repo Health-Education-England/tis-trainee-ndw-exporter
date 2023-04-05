@@ -43,6 +43,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
 
 /**
@@ -59,7 +62,7 @@ class FormServiceTest {
   private static final String FORM_TYPE_KEY = "formtype";
   private static final String FORM_TYPE_VALUE = "form-type-value";
 
-  private static final String FORMR_ROOT = "formr/bronze";
+  private static final String FORMR_ROOT = "formr/dev";
 
   private FormService service;
 
@@ -70,7 +73,7 @@ class FormServiceTest {
   void setUp() {
     amazonS3 = mock(AmazonS3.class);
     dataLakeClient = mock(DataLakeFileSystemClient.class);
-    service = new FormService(amazonS3, dataLakeClient);
+    service = new FormService(amazonS3, dataLakeClient, "dev");
   }
 
   @Test
@@ -190,8 +193,13 @@ class FormServiceTest {
     }
   }
 
-  @Test
-  void shouldExportFormWhenFormTypeIsFormrPartA() throws IOException {
+  @ParameterizedTest
+  @CsvSource(delimiter = '|', textBlock = """
+      formr-a | part-a
+      formr-b | part-b
+      """)
+  void shouldExportFormWhenFormTypeIsFormr(String formType, String subDirectory)
+      throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -200,11 +208,11 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-a");
+    metadata.addUserMetadata(FORM_TYPE_KEY, formType);
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists("part-a")).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(subDirectory)).thenReturn(directoryClient);
 
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
@@ -228,8 +236,9 @@ class FormServiceTest {
     }
   }
 
-  @Test
-  void shouldExportFormWhenFormTypeIsFormrPartB() throws IOException {
+  @ParameterizedTest
+  @ValueSource(strings = {"formr-a", "formr-b"})
+  void shouldNotThrowExceptionWhenExportedFormCannotBeClosed(String formType) throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -238,45 +247,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-b");
-
-    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists("part-b")).thenReturn(directoryClient);
-
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
-
-    byte[] contents = """
-        {
-          "field1": "value1"
-        }
-        """.getBytes(StandardCharsets.UTF_8);
-
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(contents)) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
-
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-      service.processFormEvent(formEvent);
-
-      verify(fileClient).upload(document.getObjectContent(), 0L, true);
-    }
-  }
-
-  @Test
-  void shouldNotThrowExceptionWhenExportedFormCannotBeClosed() throws IOException {
-    FormEventDto formEvent = new FormEventDto();
-    formEvent.setBucket(BUCKET);
-    formEvent.setKey(KEY);
-    formEvent.setVersionId(VERSION);
-
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-a");
+    metadata.addUserMetadata(FORM_TYPE_KEY, formType);
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
@@ -297,5 +268,36 @@ class FormServiceTest {
     assertDoesNotThrow(() -> service.processFormEvent(formEvent));
 
     verify(is).close();
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"formr-a", "formr-b"})
+  void shouldUploadToSpecifiedDirectory(String formType) throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, formType);
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+
+    S3Object document = new S3Object();
+    document.setObjectMetadata(metadata);
+
+    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory");
+    service.processFormEvent(formEvent);
+
+    verify(dataLakeClient).getDirectoryClient("formr/test-directory");
   }
 }
