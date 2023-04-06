@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright 2022 Crown Copyright (Health Education England)
+ * Copyright 2023 Crown Copyright (Health Education England)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -19,39 +19,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package uk.nhs.hee.tis.trainee.ndw;
+package uk.nhs.hee.tis.trainee.ndw.config;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import lombok.Data;
+import com.azure.core.credential.TokenCredential;
+import com.azure.storage.file.datalake.DataLakeFileSystemClient;
+import com.azure.storage.file.datalake.DataLakeFileSystemClientBuilder;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
- * A representation of a form event.
+ * Configuration for connecting to an Azure data lake.
  */
-@Data
-public class FormEventDto {
-
-  private String bucket;
-  private String key;
-  private String versionId;
+@Configuration
+public class AzureDataLakeConfiguration {
 
   /**
-   * Unpack an S3 event notification to get the FormEventDto properties.
+   * Build a client for Azure data lake.
    *
-   * @param records The "Records" node of the S3 event notification.
+   * @return The data lake client.
    */
-  @JsonProperty("Records")
-  private void unpackRecord(JsonNode records) {
-    if (records.size() > 1) {
-      // S3 events are singular so this should never happen, but we want to know if it ever does.
-      throw new UnsupportedOperationException("Multi-record events are not supported.");
-    }
-
-    JsonNode s3 = records.get(0).get("s3");
-    bucket = s3.get("bucket").get("name").textValue();
-
-    JsonNode object = s3.get("object");
-    key = object.get("key").asText();
-    versionId = object.get("versionId").textValue();
+  @Bean
+  public DataLakeFileSystemClient dataLakeFileSystemClient(TokenCredential credential,
+      @Value("${application.ndw.endpoint}") String endpoint) {
+    return new DataLakeFileSystemClientBuilder()
+        .credential(credential)
+        .endpoint(endpoint)
+        .buildClient();
   }
 }
