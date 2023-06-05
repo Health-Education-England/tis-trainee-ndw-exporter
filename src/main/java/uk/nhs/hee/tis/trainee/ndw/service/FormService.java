@@ -52,7 +52,7 @@ public class FormService {
       @Value("${application.ndw.directory}") String directory) {
     this.amazonS3 = amazonS3;
     this.dataLakeClient = dataLakeClient;
-    this.getDataLakeFormrRoot = "tis-formr/" + directory;
+    this.getDataLakeFormrRoot = directory;
   }
 
   /**
