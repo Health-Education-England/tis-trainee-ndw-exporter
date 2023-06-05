@@ -62,7 +62,7 @@ class FormServiceTest {
   private static final String FORM_TYPE_KEY = "formtype";
   private static final String FORM_TYPE_VALUE = "form-type-value";
 
-  private static final String FORMR_ROOT = "formr/dev";
+  private static final String FORMR_ROOT = "dev";
 
   private FormService service;
 
@@ -298,6 +298,6 @@ class FormServiceTest {
     FormService service = new FormService(amazonS3, dataLakeClient, "test-directory");
     service.processFormEvent(formEvent);
 
-    verify(dataLakeClient).getDirectoryClient("formr/test-directory");
+    verify(dataLakeClient).getDirectoryClient("test-directory");
   }
 }

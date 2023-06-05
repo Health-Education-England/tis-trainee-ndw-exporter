@@ -12,7 +12,7 @@ application:
     sqs:
       form: ${NDW_FORM_QUEUE_URL:}
   ndw:
-    endpoint: https://${AZURE_DATA_LAKE_NAME:local}.dfs.core.windows.net/tis
+    endpoint: https://${AZURE_DATA_LAKE_NAME:local}.dfs.core.windows.net/tis-formr
     directory: ${AZURE_DATA_LAKE_DIRECTORY:dev}
 
 logging:
