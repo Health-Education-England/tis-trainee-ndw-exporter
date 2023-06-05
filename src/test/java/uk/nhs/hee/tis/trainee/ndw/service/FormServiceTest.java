@@ -300,4 +300,57 @@ class FormServiceTest {
 
     verify(dataLakeClient).getDirectoryClient("test-directory");
   }
+
+  @Test
+  void shouldStripTrailingWhitespaceWhenExporting() throws IOException {
+    // u000A  and u000D causing trouble; u0009 must be escaped in json
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-a");
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists("part-a"))
+        .thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
+
+    byte[] contents = """
+        {
+          "field1": "  value1  ",
+          "field2": "    ",
+          "field3": "value2 \\u0009 \\u000B \\u000C \\u0020 \\u0085 \\u00A0 \\u1680 \\u2000 \\u2001 \\u2002 \\u2003 \\u2004 \\u2005 \\u2006 \\u2007 \\u2008 \\u2009 \\u200A \\u2028 \\u2029 \\u202F \\u205F \\u3000"
+        }
+        """.getBytes(StandardCharsets.UTF_8);
+
+    byte[] contentsClean = """
+        {
+          "field1": "  value1",
+          "field2": "",
+          "field3": "value2"
+        }
+        """.getBytes(StandardCharsets.UTF_8);
+
+    try (S3Object document = new S3Object();
+        InputStream contentStream = new ByteArrayInputStream(contents);
+        S3Object documentClean = new S3Object();
+        InputStream contentStreamClean = new ByteArrayInputStream(contentsClean)) {
+      document.setObjectMetadata(metadata);
+      document.setObjectContent(contentStream);
+      documentClean.setObjectContent(contentStreamClean);
+
+      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+      service.processFormEvent(formEvent);
+
+      verify(fileClient).upload(documentClean.getObjectContent(), 0L, true);
+    }
+  }
 }
