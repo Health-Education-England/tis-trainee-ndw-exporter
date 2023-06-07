@@ -346,17 +346,19 @@ class FormServiceTest {
         """.getBytes(StandardCharsets.UTF_8);
 
     String contentsClean = """
-        {"field1":"  value1","field3":"value2","field2":"","field5":{"field5_2":12.5,"field5_1":"value 3"},"field4":123}
+        {
+          "field1": "  value1",
+          "field2": "",
+          "field3": "value2",
+          "field4": 123,
+          "field5": {"field5_1": "value 3", "field5_2": 12.5}
+        }
         """.trim();
-    byte[] contentsCleanBytes = contentsClean.getBytes(StandardCharsets.UTF_8);
 
     try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(contents);
-        S3Object documentClean = new S3Object();
-        InputStream contentStreamClean = new ByteArrayInputStream(contentsCleanBytes)) {
+        InputStream contentStream = new ByteArrayInputStream(contents)) {
       document.setObjectMetadata(metadata);
       document.setObjectContent(contentStream);
-      documentClean.setObjectContent(contentStreamClean);
 
       when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
 
