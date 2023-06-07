@@ -28,7 +28,6 @@ import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,8 +35,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 
 /**
  * A service for processing S3 Form events.
@@ -156,6 +155,7 @@ public class FormService {
 
   /**
    * Remove trailing whitespace from a string object.
+   *
    * @param o the object to process.
    * @return a copy of the object with trailing whitespace removed if it is a string, otherwise the
    * unchanged object.
@@ -163,9 +163,9 @@ public class FormService {
   private Object removeTrailingWhitespace(Object o) {
     if (o instanceof String s) {
       return s.stripTrailing();
-    } else if (o instanceof HashMap<?,?> h) {
+    } else if (o instanceof HashMap<?, ?> h) {
       HashMap<String, Object> hashMap = new HashMap<>();
-      h.forEach((f,v) -> hashMap.put((String) f, removeTrailingWhitespace(v)));
+      h.forEach((f, v) -> hashMap.put((String) f, removeTrailingWhitespace(v)));
       return hashMap;
     }
     return o;

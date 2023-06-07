@@ -22,8 +22,8 @@
 package uk.nhs.hee.tis.trainee.ndw.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -353,7 +353,7 @@ class FormServiceTest {
           "field4": 123,
           "field5": {"field5_1": "value 3", "field5_2": 12.5}
         }
-        """.trim();
+        """;
 
     try (S3Object document = new S3Object();
         InputStream contentStream = new ByteArrayInputStream(contents)) {
