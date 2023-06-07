@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -223,11 +224,9 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
 
-    byte[] contents = """
-        {
-          "field1": "value1"
-        }
-        """.getBytes(StandardCharsets.UTF_8);
+    String formContents = "{\"field1\":\"value1\"}";
+    byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
+    Long formContentsLength = (long) formContents.length();
 
     try (S3Object document = new S3Object();
         InputStream contentStream = new ByteArrayInputStream(contents)) {
@@ -239,7 +238,7 @@ class FormServiceTest {
       service.processFormEvent(formEvent);
 
       ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
-      verify(fileClient).upload(streamCaptor.capture(), eq(0L), eq(true));
+      verify(fileClient).upload(streamCaptor.capture(), eq(formContentsLength), eq(true));
 
       InputStream uploadedStream = streamCaptor.getValue();
       ObjectMapper mapper = new ObjectMapper();
@@ -365,7 +364,7 @@ class FormServiceTest {
       service.processFormEvent(formEvent);
 
       ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
-      verify(fileClient).upload(streamCaptor.capture(), eq(0L), eq(true));
+      verify(fileClient).upload(streamCaptor.capture(), anyLong(), eq(true));
 
       InputStream uploadedStream = streamCaptor.getValue();
       ObjectMapper mapper = new ObjectMapper();

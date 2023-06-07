@@ -130,7 +130,7 @@ public class FormService {
 
         directoryClient
             .createFileIfNotExists(formName)
-            .upload(cleanStream, 0L, true);
+            .upload(cleanStream, cleanedString.length(), true);
         log.info("Exported form {} of type {}.", formName, formType);
       } else {
         log.warn("Skipping empty form {} of type {}.", formName, formType);
