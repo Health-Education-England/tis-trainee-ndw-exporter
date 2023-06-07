@@ -8,8 +8,8 @@ import java.util.Map;
 
 /**
  * A DTO for form content, which can be any arbitrary json.
- * <p>
- * The serialization ignores the 'fields' property to avoid creating an artificial top-level
+ *
+ * <p>The serialization ignores the 'fields' property to avoid creating an artificial top-level
  * element.
  */
 public class FormContentDto {
