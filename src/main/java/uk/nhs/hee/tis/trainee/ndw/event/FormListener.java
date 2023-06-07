@@ -27,7 +27,7 @@ import io.awspring.cloud.messaging.listener.annotation.SqsListener;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 
 /**
