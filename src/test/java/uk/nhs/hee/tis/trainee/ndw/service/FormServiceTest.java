@@ -23,9 +23,12 @@ package uk.nhs.hee.tis.trainee.ndw.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -37,6 +40,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,7 +50,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
+import org.mockito.ArgumentCaptor;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 
 /**
  * Test class for the Form Service.
@@ -232,7 +238,13 @@ class FormServiceTest {
 
       service.processFormEvent(formEvent);
 
-      verify(fileClient).upload(document.getObjectContent(), 0L, true);
+      ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+      verify(fileClient).upload(streamCaptor.capture(), eq(0L), eq(true));
+
+      InputStream uploadedStream = streamCaptor.getValue();
+      ObjectMapper mapper = new ObjectMapper();
+      FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
+      assertEquals("value1", formContentDto.fields.get("field1"));
     }
   }
 
@@ -267,7 +279,7 @@ class FormServiceTest {
 
     assertDoesNotThrow(() -> service.processFormEvent(formEvent));
 
-    verify(is).close();
+    verify(is, times(3)).close();
   }
 
   @ParameterizedTest
@@ -303,7 +315,6 @@ class FormServiceTest {
 
   @Test
   void shouldStripTrailingWhitespaceWhenExporting() throws IOException {
-    // u000A  and u000D causing trouble; u0009 must be escaped in json
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -322,26 +333,27 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
 
+    // In theory, there are a number of whitespace characters which should be stripped, but only
+    // the common ones are tested for below
     byte[] contents = """
         {
           "field1": "  value1  ",
           "field2": "    ",
-          "field3": "value2 \\u0009 \\u000B \\u000C \\u0020 \\u0085 \\u00A0 \\u1680 \\u2000 \\u2001 \\u2002 \\u2003 \\u2004 \\u2005 \\u2006 \\u2007 \\u2008 \\u2009 \\u200A \\u2028 \\u2029 \\u202F \\u205F \\u3000"
+          "field3": "value2 \\t \\n \\r \\f",
+          "field4": 123,
+          "field5": {"field5_1": "value 3 ", "field5_2": 12.5}
         }
         """.getBytes(StandardCharsets.UTF_8);
 
-    byte[] contentsClean = """
-        {
-          "field1": "  value1",
-          "field2": "",
-          "field3": "value2"
-        }
-        """.getBytes(StandardCharsets.UTF_8);
+    String contentsClean = """
+        {"field1":"  value1","field3":"value2","field2":"","field5":{"field5_2":12.5,"field5_1":"value 3"},"field4":123}
+        """.trim();
+    byte[] contentsCleanBytes = contentsClean.getBytes(StandardCharsets.UTF_8);
 
     try (S3Object document = new S3Object();
         InputStream contentStream = new ByteArrayInputStream(contents);
         S3Object documentClean = new S3Object();
-        InputStream contentStreamClean = new ByteArrayInputStream(contentsClean)) {
+        InputStream contentStreamClean = new ByteArrayInputStream(contentsCleanBytes)) {
       document.setObjectMetadata(metadata);
       document.setObjectContent(contentStream);
       documentClean.setObjectContent(contentStreamClean);
@@ -350,7 +362,19 @@ class FormServiceTest {
 
       service.processFormEvent(formEvent);
 
-      verify(fileClient).upload(documentClean.getObjectContent(), 0L, true);
+      ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+      verify(fileClient).upload(streamCaptor.capture(), eq(0L), eq(true));
+
+      InputStream uploadedStream = streamCaptor.getValue();
+      ObjectMapper mapper = new ObjectMapper();
+      FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
+      FormContentDto expectedFormDto = mapper.readValue(contentsClean, FormContentDto.class);
+      assertEquals(expectedFormDto.fields.get("field1"), formContentDto.fields.get("field1"));
+      assertEquals(expectedFormDto.fields.get("field2"), formContentDto.fields.get("field2"));
+      assertEquals(expectedFormDto.fields.get("field3"), formContentDto.fields.get("field3"));
+      assertEquals(expectedFormDto.fields.get("field4"), formContentDto.fields.get("field4"));
+      assertEquals(expectedFormDto.fields.get("field5_1"), formContentDto.fields.get("field5_1"));
+      assertEquals(expectedFormDto.fields.get("field5_2"), formContentDto.fields.get("field5_2"));
     }
   }
 }

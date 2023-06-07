@@ -27,17 +27,17 @@ import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.nhs.hee.tis.trainee.ndw.FormEventDto;
-import uk.nhs.hee.tis.trainee.ndw.config.StringDeserializerConfig;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 
 /**
  * A service for processing S3 Form events.
@@ -120,17 +120,18 @@ public class FormService {
 
     try (S3ObjectInputStream content = document.getObjectContent()) {
       if (content != null) {
-        String contentString = new String(content.readAllBytes(), StandardCharsets.UTF_8);
         ObjectMapper mapper = new ObjectMapper();
-        SimpleModule module = new SimpleModule();
-        module.addDeserializer(Object.class, new StringDeserializerConfig());
-        mapper.registerModule(module);
-        String cleanedString = mapper.writeValueAsString(mapper.readTree(contentString));
+        FormContentDto formContentDto = mapper.readValue(content, FormContentDto.class);
+        FormContentDto formContentDtoClean = cleanFormContent(formContentDto);
+        String cleanedString = mapper.writeValueAsString(formContentDtoClean);
+
         log.info("Exporting form {} of type {}.", formName, formType);
-        InputStream cleanStream = IOUtils.toInputStream(cleanedString, StandardCharsets.UTF_8);
+        S3ObjectInputStream cleanStream = new S3ObjectInputStream(
+            IOUtils.toInputStream(cleanedString, StandardCharsets.UTF_8), null);
+
         directoryClient
             .createFileIfNotExists(formName)
-            .upload(cleanStream, cleanedString.length(), true);
+            .upload(cleanStream, 0L, true);
         log.info("Exported form {} of type {}.", formName, formType);
       } else {
         log.warn("Skipping empty form {} of type {}.", formName, formType);
@@ -138,5 +139,35 @@ public class FormService {
     } catch (IOException e) {
       log.warn("Unable to close stream for form {} of type {}.", formName, formType);
     }
+  }
+
+  /**
+   * Clean form content to remove trailing whitespace in text fields.
+   *
+   * @param formContentDto the dirty form content Dto.
+   * @return a cleaned FormContentDto object.
+   */
+  private FormContentDto cleanFormContent(FormContentDto formContentDto) {
+    FormContentDto cleanFormContentDto = new FormContentDto();
+    formContentDto.fields.forEach((f, v)
+        -> cleanFormContentDto.fields.put(f, removeTrailingWhitespace(v)));
+    return cleanFormContentDto;
+  }
+
+  /**
+   * Remove trailing whitespace from a string object.
+   * @param o the object to process.
+   * @return a copy of the object with trailing whitespace removed if it is a string, otherwise the
+   * unchanged object.
+   */
+  private Object removeTrailingWhitespace(Object o) {
+    if (o instanceof String s) {
+      return s.stripTrailing();
+    } else if (o instanceof HashMap<?,?> h) {
+      HashMap<String, Object> hashMap = new HashMap<>();
+      h.forEach((f,v) -> hashMap.put((String) f, removeTrailingWhitespace(v)));
+      return hashMap;
+    }
+    return o;
   }
 }
