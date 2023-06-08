@@ -227,7 +227,7 @@ class FormServiceTest {
     //form content includes a multibyte character to test that length is correctly calculated
     String formContents = "{\"field1\":\"value1ท\"}";
     byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
-    Long formContentsLength = (long) formContents.getBytes().length;
+    long formContentsLength = formContents.getBytes(StandardCharsets.UTF_8).length;
 
     try (S3Object document = new S3Object();
         InputStream contentStream = new ByteArrayInputStream(contents)) {
