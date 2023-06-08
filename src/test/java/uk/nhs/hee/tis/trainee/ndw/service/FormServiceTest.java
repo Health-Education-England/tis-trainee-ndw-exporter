@@ -224,9 +224,10 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
 
-    String formContents = "{\"field1\":\"value1\"}";
+    //form content includes a multibyte character to test that length is correctly calculated
+    String formContents = "{\"field1\":\"value1ท\"}";
     byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
-    Long formContentsLength = (long) formContents.length();
+    Long formContentsLength = (long) formContents.getBytes().length;
 
     try (S3Object document = new S3Object();
         InputStream contentStream = new ByteArrayInputStream(contents)) {
@@ -243,7 +244,7 @@ class FormServiceTest {
       InputStream uploadedStream = streamCaptor.getValue();
       ObjectMapper mapper = new ObjectMapper();
       FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
-      assertEquals("value1", formContentDto.fields.get("field1"));
+      assertEquals("value1ท", formContentDto.fields.get("field1"));
     }
   }
 
