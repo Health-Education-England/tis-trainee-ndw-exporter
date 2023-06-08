@@ -28,6 +28,7 @@ import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -130,7 +131,7 @@ public class FormService {
 
         directoryClient
             .createFileIfNotExists(formName)
-            .upload(cleanStream, cleanedString.getBytes().length, true);
+            .upload(cleanStream, cleanedString.getBytes(StandardCharsets.UTF_8).length, true);
         log.info("Exported form {} of type {}.", formName, formType);
       } else {
         log.warn("Skipping empty form {} of type {}.", formName, formType);
