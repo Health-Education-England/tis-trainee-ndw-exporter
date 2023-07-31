@@ -61,7 +61,7 @@ dependencies {
 
   implementation "commons-io:commons-io:2.13.0"
 
-  ext.testContainersVersion = "1.18.0"
+  ext.testContainersVersion = "1.18.3"
   testImplementation "org.springframework.cloud:spring-cloud-starter"
   testImplementation "org.springframework.cloud:spring-cloud-contract-wiremock"
   testImplementation "org.testcontainers:testcontainers:${testContainersVersion}"
