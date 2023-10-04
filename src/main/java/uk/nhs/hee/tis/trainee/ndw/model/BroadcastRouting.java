@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright 2022 Crown Copyright (Health Education England)
+ * Copyright 2023 Crown Copyright (Health Education England)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -19,23 +19,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package uk.nhs.hee.tis.trainee.ndw;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+package uk.nhs.hee.tis.trainee.ndw.model;
 
 /**
- * TIS Trainee NDW Exporter
- *
- * <p>Export TSS form data to the NDW.
+ * An enum describing the options for SNS broadcast routing.
  */
-@SpringBootApplication
-@ConfigurationPropertiesScan
-public class TisTraineeNdwExporterApplication {
+public enum BroadcastRouting {
+  COJ("COJ_RECEIVED"),
+  IGNORED("IGNORED");
 
-  public static void main(String[] args) {
-    SpringApplication.run(TisTraineeNdwExporterApplication.class, args);
+  private final String key;
+
+  BroadcastRouting(String key) {
+    this.key = key;
   }
-
 }

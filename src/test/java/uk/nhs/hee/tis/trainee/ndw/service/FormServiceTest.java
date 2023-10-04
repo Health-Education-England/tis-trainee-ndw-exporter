@@ -38,6 +38,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.Headers;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.sns.AmazonSNS;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
@@ -75,12 +76,14 @@ class FormServiceTest {
 
   private AmazonS3 amazonS3;
   private DataLakeFileSystemClient dataLakeClient;
+  private FormBroadcastService formBroadcastService;
 
   @BeforeEach
   void setUp() {
     amazonS3 = mock(AmazonS3.class);
     dataLakeClient = mock(DataLakeFileSystemClient.class);
-    service = new FormService(amazonS3, dataLakeClient, "dev");
+    formBroadcastService = mock(FormBroadcastService.class);
+    service = new FormService(amazonS3, dataLakeClient, "dev", formBroadcastService);
   }
 
   @Test
@@ -307,7 +310,8 @@ class FormServiceTest {
 
     when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
 
-    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory");
+    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory",
+        formBroadcastService);
     service.processFormEvent(formEvent);
 
     verify(dataLakeClient).getDirectoryClient("test-directory");

@@ -33,8 +33,10 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.joda.time.Instant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 
@@ -47,17 +49,22 @@ public class FormService {
 
   private static final String FORM_TYPE_METADATA_FIELD = "formtype";
   private static final String NAME_METADATA_FIELD = "name";
+  private static final String LIFECYCLE_STATE_METADATA_FIELD = "lifecyclestate";
+  private static final String TRAINEE_ID_METADATA_FIELD = "traineeid";
 
   private final AmazonS3 amazonS3;
   private final DataLakeFileSystemClient dataLakeClient;
+  private FormBroadcastService formBroadcastService;
 
   private final String getDataLakeFormrRoot;
 
   FormService(AmazonS3 amazonS3, DataLakeFileSystemClient dataLakeClient,
-      @Value("${application.ndw.directory}") String directory) {
+      @Value("${application.ndw.directory}") String directory,
+      FormBroadcastService formBroadcastService) {
     this.amazonS3 = amazonS3;
     this.dataLakeClient = dataLakeClient;
     this.getDataLakeFormrRoot = directory;
+    this.formBroadcastService = formBroadcastService;
   }
 
   /**
@@ -87,6 +94,10 @@ public class FormService {
       log.info("Retrieved form {} of type {}.", formName, formType);
 
       exportToDataLake(formName, formType, document);
+
+      String traineeId = userMetadata.get(TRAINEE_ID_METADATA_FIELD);
+      String lifecycleState = userMetadata.get(LIFECYCLE_STATE_METADATA_FIELD);
+      broadcastFormEvent(formName, formType, traineeId, lifecycleState);
     } else {
       log.error("File {}/{} did not have the expected metadata.", event.getBucket(),
           event.getKey());
@@ -169,5 +180,24 @@ public class FormService {
       return hashMap;
     }
     return o;
+  }
+
+  /**
+   *
+   * @param formName
+   * @param formType
+   * @param traineeId
+   * @param lifecycleState
+   */
+  private void broadcastFormEvent(String formName, String formType, String traineeId,
+      String lifecycleState) {
+    FormBroadcastEventDto formBroadcastEventDto = new FormBroadcastEventDto();
+    formBroadcastEventDto.setFormName(formName);
+    formBroadcastEventDto.setFormType(formType);
+    formBroadcastEventDto.setLifecycleState(lifecycleState);
+    formBroadcastEventDto.setTraineeId(traineeId);
+    formBroadcastEventDto.setEventDate(Instant.now());
+    //TODO check for nulls
+    formBroadcastService.publishFormBroadcastEvent(formBroadcastEventDto);
   }
 }
