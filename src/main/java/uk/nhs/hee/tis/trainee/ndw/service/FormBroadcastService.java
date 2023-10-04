@@ -35,6 +35,9 @@ import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties.SnsRoute;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
 
+/**
+ * A service for broadcasting form events to SNS.
+ */
 @Slf4j
 @Service
 public class FormBroadcastService {
@@ -64,17 +67,17 @@ public class FormBroadcastService {
 
     if (snsTopic != null && formBroadcastEventDto != null) {
       JsonNode eventJson = objectMapper.valueToTree(formBroadcastEventDto);
-      request = buildSnsRequest(eventJson, snsTopic, formBroadcastEventDto.getFormType(),
-          formBroadcastEventDto.getFormName(), formBroadcastEventDto.getTraineeId());
+      request = buildSnsRequest(eventJson, snsTopic, formBroadcastEventDto.formType(),
+          formBroadcastEventDto.formName(), formBroadcastEventDto.traineeId());
     }
 
     if (request != null) {
       try {
         snsClient.publish(request);
-        log.info("Broadcast event sent to SNS for form {}.", formBroadcastEventDto.getFormName());
+        log.info("Broadcast event sent to SNS for form {}.", formBroadcastEventDto.formName());
       } catch (AmazonSNSException e) {
         String message = String.format("Failed to broadcast event to SNS topic '%s' for form '%s'",
-            snsTopic, formBroadcastEventDto.getFormName());
+            snsTopic, formBroadcastEventDto.formName());
         log.error(message, e);
       }
     }

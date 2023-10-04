@@ -32,6 +32,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record EventNotificationProperties(
     SnsRoute updateFormEvent) {
 
+  /**
+   * An SNS route with a message attribute for routing purposes.
+   *
+   * @param arn              The SNS ARN.
+   * @param messageAttribute The message attribute to use.
+   */
   public record SnsRoute(String arn, String messageAttribute) {
+
   }
 }

@@ -95,9 +95,16 @@ public class FormService {
 
       exportToDataLake(formName, formType, document);
 
-      String traineeId = userMetadata.get(TRAINEE_ID_METADATA_FIELD);
-      String lifecycleState = userMetadata.get(LIFECYCLE_STATE_METADATA_FIELD);
-      broadcastFormEvent(formName, formType, traineeId, lifecycleState);
+      if (userMetadata.containsKey(TRAINEE_ID_METADATA_FIELD)
+          && userMetadata.containsKey(LIFECYCLE_STATE_METADATA_FIELD)) {
+        String traineeId = userMetadata.get(TRAINEE_ID_METADATA_FIELD);
+        String lifecycleState = userMetadata.get(LIFECYCLE_STATE_METADATA_FIELD);
+        broadcastFormEvent(formName, formType, traineeId, lifecycleState);
+      } else {
+        log.error("File {}/{} did not have the expected metadata for broadcasting the event.",
+            event.getBucket(), event.getKey());
+        throw new IOException("Unexpected document contents.");
+      }
     } else {
       log.error("File {}/{} did not have the expected metadata.", event.getBucket(),
           event.getKey());
@@ -169,7 +176,7 @@ public class FormService {
    *
    * @param o the object to process.
    * @return a copy of the object with trailing whitespace removed if it is a string, otherwise the
-   *         unchanged object.
+   * unchanged object.
    */
   private Object removeTrailingWhitespace(Object o) {
     if (o instanceof String s) {
@@ -183,21 +190,18 @@ public class FormService {
   }
 
   /**
+   * Broadcast a form event using the form broadcast service.
    *
-   * @param formName
-   * @param formType
-   * @param traineeId
-   * @param lifecycleState
+   * @param formName       The name of the form.
+   * @param formType       The type of the form (e.g. formr-a, formr-b).
+   * @param traineeId      The trainee TIS ID.
+   * @param lifecycleState The lifecycle state of the form (e.g. SUBMITTED, DELETED).
    */
   private void broadcastFormEvent(String formName, String formType, String traineeId,
       String lifecycleState) {
-    FormBroadcastEventDto formBroadcastEventDto = new FormBroadcastEventDto();
-    formBroadcastEventDto.setFormName(formName);
-    formBroadcastEventDto.setFormType(formType);
-    formBroadcastEventDto.setLifecycleState(lifecycleState);
-    formBroadcastEventDto.setTraineeId(traineeId);
-    formBroadcastEventDto.setEventDate(Instant.now());
-    //TODO check for nulls
+    log.info("Broadcasting event for form {}", formName);
+    FormBroadcastEventDto formBroadcastEventDto
+        = new FormBroadcastEventDto(formName, formType, lifecycleState, traineeId, Instant.now());
     formBroadcastService.publishFormBroadcastEvent(formBroadcastEventDto);
   }
 }
