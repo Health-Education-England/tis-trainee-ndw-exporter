@@ -151,6 +151,9 @@ class FormBroadcastServiceTest {
     FormBroadcastEventDto formBroadcastEventDto
         = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
         FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+    SnsRoute fifoSns = new SnsRoute(MESSAGE_ARN + ".fifo", MESSAGE_ATTRIBUTE);
+    eventNotificationProperties = new EventNotificationProperties(fifoSns);
+    service = new FormBroadcastService(amazonSns, eventNotificationProperties);
 
     service.publishFormBroadcastEvent(formBroadcastEventDto);
 
