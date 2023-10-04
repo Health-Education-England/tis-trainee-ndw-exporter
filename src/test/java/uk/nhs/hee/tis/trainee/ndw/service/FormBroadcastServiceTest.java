@@ -24,6 +24,7 @@ package uk.nhs.hee.tis.trainee.ndw.service;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -143,6 +144,47 @@ class FormBroadcastServiceTest {
     when(amazonSns.publish(any())).thenThrow(new AmazonSNSException("publish error"));
 
     assertDoesNotThrow(() -> service.publishFormBroadcastEvent(formBroadcastEventDto));
+  }
+
+  @Test
+  void shouldSetMessageGroupIdOnIssuedEventWhenFifoQueue() {
+    FormBroadcastEventDto formBroadcastEventDto
+        = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
+        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+
+    service.publishFormBroadcastEvent(formBroadcastEventDto);
+
+    ArgumentCaptor<PublishRequest> requestCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+    verify(amazonSns).publish(requestCaptor.capture());
+
+    PublishRequest request = requestCaptor.getValue();
+    assertThat("Unexpected message group id.", request.getMessageGroupId(),
+        is(FORM_TRAINEE_VALUE + "_" + FORM_TYPE_VALUE + "_" + FORM_NAME_VALUE));
+
+    verifyNoMoreInteractions(amazonSns);
+  }
+
+  @Test
+  void shouldNotSetMessageAttributeIfNotRequired() {
+    FormBroadcastEventDto formBroadcastEventDto
+        = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
+        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+
+    eventNotificationProperties
+        = new EventNotificationProperties(new SnsRoute(MESSAGE_ARN, null));
+    service = new FormBroadcastService(amazonSns, eventNotificationProperties);
+
+    service.publishFormBroadcastEvent(formBroadcastEventDto);
+
+    ArgumentCaptor<PublishRequest> requestCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+    verify(amazonSns).publish(requestCaptor.capture());
+
+    PublishRequest request = requestCaptor.getValue();
+
+    Map<String, MessageAttributeValue> messageAttributes = request.getMessageAttributes();
+    assertNull(messageAttributes.get("event_type"), "Unexpected message attribute value.");
+
+    verifyNoMoreInteractions(amazonSns);
   }
 
 }
