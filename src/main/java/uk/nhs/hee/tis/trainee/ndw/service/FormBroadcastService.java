@@ -27,6 +27,8 @@ import com.amazonaws.services.sns.model.MessageAttributeValue;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties;
@@ -38,14 +40,12 @@ import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
 public class FormBroadcastService {
 
   private final AmazonSNS snsClient;
-  private final ObjectMapper objectMapper;
 
   private final EventNotificationProperties eventNotificationProperties;
 
-  FormBroadcastService(AmazonSNS snsClient, ObjectMapper objectMapper,
+  FormBroadcastService(AmazonSNS snsClient,
       EventNotificationProperties eventNotificationProperties) {
     this.snsClient = snsClient;
-    this.objectMapper = objectMapper;
     this.eventNotificationProperties = eventNotificationProperties;
   }
 
@@ -55,13 +55,17 @@ public class FormBroadcastService {
    * @param formBroadcastEventDto The form broadcast event DTO to publish.
    */
   public void publishFormBroadcastEvent(FormBroadcastEventDto formBroadcastEventDto) {
+    ObjectMapper objectMapper = new ObjectMapper()
+        .registerModule(new JavaTimeModule())
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
     PublishRequest request = null;
     SnsRoute snsTopic = eventNotificationProperties.updateFormEvent();
 
     if (snsTopic != null && formBroadcastEventDto != null) {
       JsonNode eventJson = objectMapper.valueToTree(formBroadcastEventDto);
       request = buildSnsRequest(eventJson, snsTopic, formBroadcastEventDto.getFormType(),
-          formBroadcastEventDto.getFormName());
+          formBroadcastEventDto.getFormName(), formBroadcastEventDto.getTraineeId());
     }
 
     if (request != null) {
@@ -83,10 +87,11 @@ public class FormBroadcastService {
    * @param snsTopic  The SNS topic to send the message to.
    * @param formType  The form type.
    * @param formName  The form name.
+   * @param traineeId The trainee ID.
    * @return the built request.
    */
   private PublishRequest buildSnsRequest(JsonNode eventJson, SnsRoute snsTopic, String formType,
-      String formName) {
+      String formName, String traineeId) {
     PublishRequest request = new PublishRequest()
         .withMessage(eventJson.toString())
         .withTopicArn(snsTopic.arn());
@@ -99,7 +104,7 @@ public class FormBroadcastService {
 
     if (snsTopic.arn().endsWith(".fifo")) {
       // Create a message group to ensure FIFO per unique object.
-      String messageGroup = String.format("%s_%s", formType, formName);
+      String messageGroup = String.format("%s_%s_%s", traineeId, formType, formName);
       request.setMessageGroupId(messageGroup);
     }
     return request;

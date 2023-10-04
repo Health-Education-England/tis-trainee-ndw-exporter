@@ -1,7 +1,7 @@
 package uk.nhs.hee.tis.trainee.ndw.dto;
 
+import java.time.Instant;
 import lombok.Data;
-import org.joda.time.Instant;
 
 /**
  * A DTO for broadcasting form update events (submitted/unsubmitted).
