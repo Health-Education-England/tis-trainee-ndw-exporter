@@ -26,11 +26,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * A representation of the event notification endpoint properties.
  *
- * @param updateFormEvent The update form R event ARN
+ * @param formUpdatedEvent The update form R event ARN
  */
 @ConfigurationProperties(prefix = "application.aws.sns")
 public record EventNotificationProperties(
-    SnsRoute updateFormEvent) {
+    SnsRoute formUpdatedEvent) {
 
   /**
    * An SNS route with a message attribute for routing purposes.

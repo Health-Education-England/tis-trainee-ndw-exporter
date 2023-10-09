@@ -63,7 +63,7 @@ public class FormBroadcastService {
         .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     PublishRequest request = null;
-    SnsRoute snsTopic = eventNotificationProperties.updateFormEvent();
+    SnsRoute snsTopic = eventNotificationProperties.formUpdatedEvent();
 
     if (snsTopic != null && formBroadcastEventDto != null) {
       JsonNode eventJson = objectMapper.valueToTree(formBroadcastEventDto);

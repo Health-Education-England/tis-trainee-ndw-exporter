@@ -10,8 +10,8 @@ sentry:
 application:
   aws:
     sns:
-      update-form-event:
-        arn: ${UPDATE_FORM_TOPIC_ARN:}
+      form-updated-event:
+        arn: ${FORM_UPDATED_TOPIC_ARN:}
         message-attribute: FORM_R
     sqs:
       form: ${NDW_FORM_QUEUE_URL:}

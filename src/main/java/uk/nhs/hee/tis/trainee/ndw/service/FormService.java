@@ -201,7 +201,7 @@ public class FormService {
       String lifecycleState) {
     log.info("Broadcasting event for form {}", formName);
     FormBroadcastEventDto formBroadcastEventDto
-        = new FormBroadcastEventDto(formName, formType, lifecycleState, traineeId, Instant.now());
+        = new FormBroadcastEventDto(formName, lifecycleState, traineeId, formType, Instant.now());
     formBroadcastService.publishFormBroadcastEvent(formBroadcastEventDto);
   }
 }
