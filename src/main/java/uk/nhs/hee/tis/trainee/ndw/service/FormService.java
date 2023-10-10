@@ -54,7 +54,7 @@ public class FormService {
 
   private final AmazonS3 amazonS3;
   private final DataLakeFileSystemClient dataLakeClient;
-  private FormBroadcastService formBroadcastService;
+  private final FormBroadcastService formBroadcastService;
 
   private final String getDataLakeFormrRoot;
 
@@ -93,13 +93,13 @@ public class FormService {
       String formType = userMetadata.get(FORM_TYPE_METADATA_FIELD);
       log.info("Retrieved form {} of type {}.", formName, formType);
 
-      exportToDataLake(formName, formType, document);
+      FormContentDto formContentDto = exportToDataLake(formName, formType, document);
 
       if (userMetadata.containsKey(TRAINEE_ID_METADATA_FIELD)
           && userMetadata.containsKey(LIFECYCLE_STATE_METADATA_FIELD)) {
         String traineeId = userMetadata.get(TRAINEE_ID_METADATA_FIELD);
         String lifecycleState = userMetadata.get(LIFECYCLE_STATE_METADATA_FIELD);
-        broadcastFormEvent(formName, formType, traineeId, lifecycleState);
+        broadcastFormEvent(formName, formType, traineeId, lifecycleState, formContentDto);
       } else {
         log.error("File {}/{} did not have the expected metadata for broadcasting the event.",
             event.getBucket(), event.getKey());
@@ -118,9 +118,11 @@ public class FormService {
    * @param formName The file name of the form.
    * @param formType The form's type.
    * @param document The S3 document to upload.
+   * @return the form content DTO.
    */
-  private void exportToDataLake(String formName, String formType, S3Object document) {
+  private FormContentDto exportToDataLake(String formName, String formType, S3Object document) {
     DataLakeDirectoryClient directoryClient;
+    FormContentDto formContentDtoClean = null;
 
     switch (formType) {
       case "formr-a" -> directoryClient = dataLakeClient
@@ -131,7 +133,7 @@ public class FormService {
           .createSubdirectoryIfNotExists("part-b");
       default -> {
         log.error("{} is not an exportable form type.", formType);
-        return;
+        return null;
       }
     }
 
@@ -139,7 +141,7 @@ public class FormService {
       if (content != null) {
         ObjectMapper mapper = new ObjectMapper();
         FormContentDto formContentDto = mapper.readValue(content, FormContentDto.class);
-        FormContentDto formContentDtoClean = cleanFormContent(formContentDto);
+        formContentDtoClean = cleanFormContent(formContentDto);
         String cleanedString = mapper.writeValueAsString(formContentDtoClean);
 
         log.info("Exporting form {} of type {}.", formName, formType);
@@ -156,6 +158,7 @@ public class FormService {
     } catch (IOException e) {
       log.warn("Unable to close stream for form {} of type {}.", formName, formType);
     }
+    return formContentDtoClean;
   }
 
   /**
@@ -176,7 +179,7 @@ public class FormService {
    *
    * @param o the object to process.
    * @return a copy of the object with trailing whitespace removed if it is a string, otherwise the
-   *         unchanged object.
+   * unchanged object.
    */
   private Object removeTrailingWhitespace(Object o) {
     if (o instanceof String s) {
@@ -196,12 +199,17 @@ public class FormService {
    * @param formType       The type of the form (e.g. formr-a, formr-b).
    * @param traineeId      The trainee TIS ID.
    * @param lifecycleState The lifecycle state of the form (e.g. SUBMITTED, DELETED).
+   * @param formContentDto The form content.
    */
   private void broadcastFormEvent(String formName, String formType, String traineeId,
-      String lifecycleState) {
-    log.info("Broadcasting event for form {}", formName);
-    FormBroadcastEventDto formBroadcastEventDto
-        = new FormBroadcastEventDto(formName, lifecycleState, traineeId, formType, Instant.now());
-    formBroadcastService.publishFormBroadcastEvent(formBroadcastEventDto);
+      String lifecycleState, FormContentDto formContentDto) {
+    if (formContentDto != null) {
+      log.info("Broadcasting event for form {}", formName);
+      FormBroadcastEventDto formBroadcastEventDto = new FormBroadcastEventDto(
+          formName, lifecycleState, traineeId, formType, Instant.now(), formContentDto);
+      formBroadcastService.publishFormBroadcastEvent(formBroadcastEventDto);
+    } else {
+      log.warn("No content in form {} of type {}, skipping event broadcast.", formName, formType);
+    }
   }
 }

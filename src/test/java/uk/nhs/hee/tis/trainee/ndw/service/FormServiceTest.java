@@ -67,7 +67,8 @@ class FormServiceTest {
   private static final String FORM_NAME_KEY = "name";
   private static final String FORM_NAME_VALUE = "123.json";
   private static final String FORM_TYPE_KEY = "formtype";
-  private static final String FORM_TYPE_VALUE = "form-type-value";
+  private static final String FORM_TYPE_VALID_VALUE = "formr-a";
+  private static final String FORM_TYPE_UNCHECKED_VALUE = "form-type-value";
   private static final String FORM_TRAINEE_KEY = "traineeid";
   private static final String FORM_TRAINEE_VALUE = "trainee-value";
   private static final String FORM_LIFECYCLE_STATE_KEY = "lifecyclestate";
@@ -99,7 +100,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata("not-name", FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE);
     metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
     metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
 
@@ -124,7 +125,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata("not-form-type", FORM_TYPE_VALUE);
+    metadata.addUserMetadata("not-form-type", FORM_TYPE_VALID_VALUE);
     metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
     metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
 
@@ -149,7 +150,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
     metadata.addUserMetadata("not-trainee-id", FORM_TRAINEE_VALUE);
     metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
 
@@ -174,7 +175,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
     metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
     metadata.addUserMetadata("not-form-lifecyle", FORM_LIFECYCLE_STATE_VALUE);
 
@@ -199,7 +200,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
     metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
     metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
 
@@ -224,7 +225,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, "latestVersion");
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
     metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
     metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
 
@@ -249,7 +250,7 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
     metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
     metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
 
@@ -456,7 +457,7 @@ class FormServiceTest {
   }
 
   @Test
-  void shouldBroadcastFormEvent() throws IOException {
+  void shouldBroadcastValidFormEvent() throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -465,7 +466,47 @@ class FormServiceTest {
     ObjectMetadata metadata = new ObjectMetadata();
     metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
     metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE);
+    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
+    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+
+    S3Object document = new S3Object();
+    document.setObjectMetadata(metadata);
+
+    byte[] contents = """
+        {
+          "field1": "value1"
+        }
+        """.getBytes(StandardCharsets.UTF_8);
+    document.setObjectContent(new ByteArrayInputStream(contents));
+
+    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory",
+        formBroadcastService);
+    service.processFormEvent(formEvent);
+
+    verify(formBroadcastService).publishFormBroadcastEvent(any());
+  }
+
+  @Test
+  void shouldNotBroadcastFormEventIfNoFormContent() throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE);
     metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
     metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
 
@@ -485,6 +526,46 @@ class FormServiceTest {
         formBroadcastService);
     service.processFormEvent(formEvent);
 
-    verify(formBroadcastService).publishFormBroadcastEvent(any());
+    verifyNoInteractions(formBroadcastService);
+  }
+
+  @Test
+  void shouldNotBroadcastFormEventIfUnrecognizedFormType() throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    ObjectMetadata metadata = new ObjectMetadata();
+    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
+    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
+    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
+    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
+    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+
+    S3Object document = new S3Object();
+    document.setObjectMetadata(metadata);
+
+    byte[] contents = """
+        {
+          "field1": "value1"
+        }
+        """.getBytes(StandardCharsets.UTF_8);
+    document.setObjectContent(new ByteArrayInputStream(contents));
+
+    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+
+    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory",
+        formBroadcastService);
+    service.processFormEvent(formEvent);
+
+    verifyNoInteractions(formBroadcastService);
   }
 }

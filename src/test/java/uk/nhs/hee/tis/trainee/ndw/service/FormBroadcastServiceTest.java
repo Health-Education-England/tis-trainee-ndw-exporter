@@ -40,6 +40,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ import org.mockito.ArgumentCaptor;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties.SnsRoute;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 
 /**
  * Test class for the Form Broadcast Service.
@@ -58,6 +60,9 @@ class FormBroadcastServiceTest {
   private static final String FORM_TRAINEE_VALUE = "trainee-value";
   private static final String FORM_LIFECYCLE_STATE_VALUE = "lifecycle-state-value";
   private static final Instant FORM_EVENT_DATE_VALUE = Instant.now();
+  private static final FormContentDto FORM_CONTENT_VALUE = new FormContentDto();
+  private static final String FORM_CONTENT_FIELD = "field1";
+  private static final String FORM_CONTENT_FIELD_VALUE = "value1";
 
   private static final String MESSAGE_ATTRIBUTE = "message-attribute";
   private static final String MESSAGE_ARN = "the-arn";
@@ -75,13 +80,15 @@ class FormBroadcastServiceTest {
     eventNotificationProperties = new EventNotificationProperties(snsRoute);
     objectMapper = new ObjectMapper();
     service = new FormBroadcastService(amazonSns, eventNotificationProperties);
+
+    FORM_CONTENT_VALUE.fields.put(FORM_CONTENT_FIELD, FORM_CONTENT_FIELD_VALUE);
   }
 
   @Test
   void shouldNotPublishFormBroadcastEventIfSnsIsNull() {
     FormBroadcastEventDto formBroadcastEventDto
         = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
-        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
 
     eventNotificationProperties = new EventNotificationProperties(null);
     service = new FormBroadcastService(amazonSns, eventNotificationProperties);
@@ -102,7 +109,7 @@ class FormBroadcastServiceTest {
   void shouldPublishFormBroadcastEvent() throws JsonProcessingException {
     FormBroadcastEventDto formBroadcastEventDto
         = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
-        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
 
     service.publishFormBroadcastEvent(formBroadcastEventDto);
 
@@ -126,6 +133,11 @@ class FormBroadcastServiceTest {
     assertThat("Unexpected message event date.", message.get("eventDate"),
         is(FORM_EVENT_DATE_VALUE.toString()));
 
+    LinkedHashMap<?,?> formContent
+        = objectMapper.convertValue(message.get("formContentDto"), LinkedHashMap.class);
+    assertThat("Unexpected message form content.",
+        formContent.get(FORM_CONTENT_FIELD), is(FORM_CONTENT_FIELD_VALUE));
+
     Map<String, MessageAttributeValue> messageAttributes = request.getMessageAttributes();
     assertThat("Unexpected message attribute value.",
         messageAttributes.get("event_type").getStringValue(), is(MESSAGE_ATTRIBUTE));
@@ -139,7 +151,7 @@ class FormBroadcastServiceTest {
   void shouldNotThrowSnsExceptionsWhenBroadcastingEvent() {
     FormBroadcastEventDto formBroadcastEventDto
         = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
-        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
 
     when(amazonSns.publish(any())).thenThrow(new AmazonSNSException("publish error"));
 
@@ -150,7 +162,7 @@ class FormBroadcastServiceTest {
   void shouldSetMessageGroupIdOnIssuedEventWhenFifoQueue() {
     FormBroadcastEventDto formBroadcastEventDto
         = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
-        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
     SnsRoute fifoSns = new SnsRoute(MESSAGE_ARN + ".fifo", MESSAGE_ATTRIBUTE);
     eventNotificationProperties = new EventNotificationProperties(fifoSns);
     service = new FormBroadcastService(amazonSns, eventNotificationProperties);
@@ -171,7 +183,7 @@ class FormBroadcastServiceTest {
   void shouldNotSetMessageAttributeIfNotRequired() {
     FormBroadcastEventDto formBroadcastEventDto
         = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
-        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE);
+        FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
 
     eventNotificationProperties
         = new EventNotificationProperties(new SnsRoute(MESSAGE_ARN, null));
@@ -189,5 +201,4 @@ class FormBroadcastServiceTest {
 
     verifyNoMoreInteractions(amazonSns);
   }
-
 }

@@ -32,7 +32,8 @@ public record FormBroadcastEventDto(
     String lifecycleState,
     String traineeId,
     String formType,
-    Instant eventDate
+    Instant eventDate,
+    FormContentDto formContentDto
 ) {
 
 }
