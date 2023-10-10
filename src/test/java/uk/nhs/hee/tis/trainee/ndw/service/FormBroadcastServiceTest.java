@@ -133,7 +133,7 @@ class FormBroadcastServiceTest {
     assertThat("Unexpected message event date.", message.get("eventDate"),
         is(FORM_EVENT_DATE_VALUE.toString()));
 
-    LinkedHashMap<?,?> formContent
+    LinkedHashMap<?, ?> formContent
         = objectMapper.convertValue(message.get("formContentDto"), LinkedHashMap.class);
     assertThat("Unexpected message form content.",
         formContent.get(FORM_CONTENT_FIELD), is(FORM_CONTENT_FIELD_VALUE));

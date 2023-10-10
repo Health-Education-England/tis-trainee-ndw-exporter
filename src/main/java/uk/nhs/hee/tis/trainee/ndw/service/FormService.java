@@ -179,7 +179,7 @@ public class FormService {
    *
    * @param o the object to process.
    * @return a copy of the object with trailing whitespace removed if it is a string, otherwise the
-   * unchanged object.
+   *         unchanged object.
    */
   private Object removeTrailingWhitespace(Object o) {
     if (o instanceof String s) {
