@@ -61,7 +61,7 @@ dependencies {
 
   implementation("commons-io:commons-io:2.15.0")
 
-  val testContainersVersion = "1.19.1"
+  val testContainersVersion = "1.19.3"
   testImplementation("org.springframework.cloud:spring-cloud-starter")
   testImplementation("org.springframework.cloud:spring-cloud-contract-wiremock")
   testImplementation("org.testcontainers:testcontainers:${testContainersVersion}")
