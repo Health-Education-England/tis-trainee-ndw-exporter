@@ -21,21 +21,23 @@
 
 package uk.nhs.hee.tis.trainee.ndw.service;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
@@ -52,19 +54,22 @@ public class FormService {
   private static final String LIFECYCLE_STATE_METADATA_FIELD = "lifecyclestate";
   private static final String TRAINEE_ID_METADATA_FIELD = "traineeid";
 
-  private final AmazonS3 amazonS3;
+  private final S3Client s3Client;
   private final DataLakeFileSystemClient dataLakeClient;
   private final FormBroadcastService formBroadcastService;
 
   private final String getDataLakeFormrRoot;
 
-  FormService(AmazonS3 amazonS3, DataLakeFileSystemClient dataLakeClient,
+  private final ObjectMapper mapper;
+
+  FormService(S3Client s3Client, DataLakeFileSystemClient dataLakeClient,
       @Value("${application.ndw.directory}") String directory,
-      FormBroadcastService formBroadcastService) {
-    this.amazonS3 = amazonS3;
+      FormBroadcastService formBroadcastService, ObjectMapper mapper) {
+    this.s3Client = s3Client;
     this.dataLakeClient = dataLakeClient;
     this.getDataLakeFormrRoot = directory;
     this.formBroadcastService = formBroadcastService;
+    this.mapper = mapper;
   }
 
   /**
@@ -76,16 +81,20 @@ public class FormService {
    */
   public void processFormEvent(FormEventDto event) throws IOException {
     log.info("Processing form event for {}/{}", event.getBucket(), event.getKey());
+    GetObjectRequest request = GetObjectRequest.builder()
+        .bucket(event.getBucket())
+        .key(event.getKey())
+        .build();
 
-    S3Object document = amazonS3.getObject(event.getBucket(), event.getKey());
-    String latestVersionId = document.getObjectMetadata().getVersionId();
+    ResponseBytes<GetObjectResponse> responseBytes = s3Client.getObjectAsBytes(request);
+    String latestVersionId = responseBytes.response().versionId();
 
-    if (!latestVersionId.equals(event.getVersionId())) {
+    if (!Objects.equals(event.getVersionId(), latestVersionId)) {
       log.info("The form has been modified since the event was published, using latest content.");
       log.debug("Event version: {}\nLatest version: {}", event.getVersionId(), latestVersionId);
     }
 
-    Map<String, String> userMetadata = document.getObjectMetadata().getUserMetadata();
+    Map<String, String> userMetadata = responseBytes.response().metadata();
 
     if (userMetadata.containsKey(NAME_METADATA_FIELD) && userMetadata.containsKey(
         FORM_TYPE_METADATA_FIELD)) {
@@ -93,7 +102,8 @@ public class FormService {
       String formType = userMetadata.get(FORM_TYPE_METADATA_FIELD);
       log.info("Retrieved form {} of type {}.", formName, formType);
 
-      FormContentDto formContentDto = exportToDataLake(formName, formType, document);
+      FormContentDto formContentDto = exportToDataLake(formName, formType,
+          responseBytes.asByteArray());
 
       if (userMetadata.containsKey(TRAINEE_ID_METADATA_FIELD)
           && userMetadata.containsKey(LIFECYCLE_STATE_METADATA_FIELD)) {
@@ -115,12 +125,12 @@ public class FormService {
   /**
    * Export a form to the data lake.
    *
-   * @param formName The file name of the form.
-   * @param formType The form's type.
-   * @param document The S3 document to upload.
+   * @param formName     The file name of the form.
+   * @param formType     The form's type.
+   * @param contentBytes The form content to upload.
    * @return the form content DTO.
    */
-  private FormContentDto exportToDataLake(String formName, String formType, S3Object document) {
+  private FormContentDto exportToDataLake(String formName, String formType, byte[] contentBytes) {
     DataLakeDirectoryClient directoryClient;
     FormContentDto formContentDtoClean = null;
 
@@ -137,26 +147,25 @@ public class FormService {
       }
     }
 
-    try (S3ObjectInputStream content = document.getObjectContent()) {
-      if (content != null) {
-        ObjectMapper mapper = new ObjectMapper();
-        FormContentDto formContentDto = mapper.readValue(content, FormContentDto.class);
+    try {
+      if (contentBytes.length > 0) {
+        FormContentDto formContentDto = mapper.readValue(contentBytes, FormContentDto.class);
         formContentDtoClean = cleanFormContent(formContentDto);
         String cleanedString = mapper.writeValueAsString(formContentDtoClean);
 
         log.info("Exporting form {} of type {}.", formName, formType);
-        S3ObjectInputStream cleanStream = new S3ObjectInputStream(
-            IOUtils.toInputStream(cleanedString, StandardCharsets.UTF_8), null);
-
-        directoryClient
-            .createFileIfNotExists(formName)
-            .upload(cleanStream, cleanedString.getBytes(StandardCharsets.UTF_8).length, true);
-        log.info("Exported form {} of type {}.", formName, formType);
+        byte[] cleanedBytes = cleanedString.getBytes(StandardCharsets.UTF_8);
+        try (ByteArrayInputStream cleanStream = new ByteArrayInputStream(cleanedBytes)) {
+          directoryClient
+              .createFileIfNotExists(formName)
+              .upload(cleanStream, cleanedBytes.length, true);
+          log.info("Exported form {} of type {}.", formName, formType);
+        }
       } else {
         log.warn("Skipping empty form {} of type {}.", formName, formType);
       }
     } catch (IOException e) {
-      log.warn("Unable to close stream for form {} of type {}.", formName, formType);
+      log.warn("Unable to export content for form {} of type {}.", formName, formType);
     }
     return formContentDtoClean;
   }
@@ -179,7 +188,7 @@ public class FormService {
    *
    * @param o the object to process.
    * @return a copy of the object with trailing whitespace removed if it is a string, otherwise the
-   *         unchanged object.
+   *     unchanged object.
    */
   private Object removeTrailingWhitespace(Object o) {
     if (o instanceof String s) {

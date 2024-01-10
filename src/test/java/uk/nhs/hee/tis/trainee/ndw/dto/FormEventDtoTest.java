@@ -29,7 +29,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 
 class FormEventDtoTest {
 

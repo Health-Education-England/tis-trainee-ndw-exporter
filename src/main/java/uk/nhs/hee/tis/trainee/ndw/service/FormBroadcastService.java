@@ -21,16 +21,18 @@
 
 package uk.nhs.hee.tis.trainee.ndw.service;
 
-import com.amazonaws.services.sns.AmazonSNS;
-import com.amazonaws.services.sns.model.AmazonSNSException;
-import com.amazonaws.services.sns.model.MessageAttributeValue;
-import com.amazonaws.services.sns.model.PublishRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishRequest.Builder;
+import software.amazon.awssdk.services.sns.model.SnsException;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties.SnsRoute;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
@@ -42,11 +44,11 @@ import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
 @Service
 public class FormBroadcastService {
 
-  private final AmazonSNS snsClient;
+  private final SnsClient snsClient;
 
   private final EventNotificationProperties eventNotificationProperties;
 
-  FormBroadcastService(AmazonSNS snsClient,
+  FormBroadcastService(SnsClient snsClient,
       EventNotificationProperties eventNotificationProperties) {
     this.snsClient = snsClient;
     this.eventNotificationProperties = eventNotificationProperties;
@@ -75,7 +77,7 @@ public class FormBroadcastService {
       try {
         snsClient.publish(request);
         log.info("Broadcast event sent to SNS for form {}.", formBroadcastEventDto.formName());
-      } catch (AmazonSNSException e) {
+      } catch (SnsException e) {
         String message = String.format("Failed to broadcast event to SNS topic '%s' for form '%s'",
             snsTopic, formBroadcastEventDto.formName());
         log.error(message, e);
@@ -95,21 +97,24 @@ public class FormBroadcastService {
    */
   private PublishRequest buildSnsRequest(JsonNode eventJson, SnsRoute snsTopic, String formType,
       String formName, String traineeId) {
-    PublishRequest request = new PublishRequest()
-        .withMessage(eventJson.toString())
-        .withTopicArn(snsTopic.arn());
+    Builder request = PublishRequest.builder()
+        .message(eventJson.toString())
+        .topicArn(snsTopic.arn());
+
     if (snsTopic.messageAttribute() != null) {
-      MessageAttributeValue messageAttributeValue = new MessageAttributeValue()
-          .withDataType("String")
-          .withStringValue(snsTopic.messageAttribute());
-      request.addMessageAttributesEntry("event_type", messageAttributeValue);
+      MessageAttributeValue messageAttributeValue = MessageAttributeValue.builder()
+          .dataType("String")
+          .stringValue(snsTopic.messageAttribute())
+          .build();
+      request.messageAttributes(Map.of("event_type", messageAttributeValue));
     }
 
     if (snsTopic.arn().endsWith(".fifo")) {
       // Create a message group to ensure FIFO per unique object.
       String messageGroup = String.format("%s_%s_%s", traineeId, formType, formName);
-      request.setMessageGroupId(messageGroup);
+      request.messageGroupId(messageGroup);
     }
-    return request;
+
+    return request.build();
   }
 }

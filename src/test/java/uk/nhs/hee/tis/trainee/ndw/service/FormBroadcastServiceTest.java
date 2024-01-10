@@ -32,10 +32,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.amazonaws.services.sns.AmazonSNS;
-import com.amazonaws.services.sns.model.AmazonSNSException;
-import com.amazonaws.services.sns.model.MessageAttributeValue;
-import com.amazonaws.services.sns.model.PublishRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +41,10 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.SnsException;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties.SnsRoute;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
@@ -70,16 +70,16 @@ class FormBroadcastServiceTest {
   private FormBroadcastService service;
 
   private ObjectMapper objectMapper;
-  private AmazonSNS amazonSns;
+  private SnsClient snsClient;
   private EventNotificationProperties eventNotificationProperties;
 
   @BeforeEach
   void setUp() {
-    amazonSns = mock(AmazonSNS.class);
+    snsClient = mock(SnsClient.class);
     SnsRoute snsRoute = new SnsRoute(MESSAGE_ARN, MESSAGE_ATTRIBUTE);
     eventNotificationProperties = new EventNotificationProperties(snsRoute);
     objectMapper = new ObjectMapper();
-    service = new FormBroadcastService(amazonSns, eventNotificationProperties);
+    service = new FormBroadcastService(snsClient, eventNotificationProperties);
 
     FORM_CONTENT_VALUE.fields.put(FORM_CONTENT_FIELD, FORM_CONTENT_FIELD_VALUE);
   }
@@ -91,18 +91,18 @@ class FormBroadcastServiceTest {
         FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
 
     eventNotificationProperties = new EventNotificationProperties(null);
-    service = new FormBroadcastService(amazonSns, eventNotificationProperties);
+    service = new FormBroadcastService(snsClient, eventNotificationProperties);
 
     service.publishFormBroadcastEvent(formBroadcastEventDto);
 
-    verifyNoInteractions(amazonSns);
+    verifyNoInteractions(snsClient);
   }
 
   @Test
   void shouldNotPublishFormBroadcastEventIfEventDtoIsNull() {
     service.publishFormBroadcastEvent(null);
 
-    verifyNoInteractions(amazonSns);
+    verifyNoInteractions(snsClient);
   }
 
   @Test
@@ -114,12 +114,12 @@ class FormBroadcastServiceTest {
     service.publishFormBroadcastEvent(formBroadcastEventDto);
 
     ArgumentCaptor<PublishRequest> requestCaptor = ArgumentCaptor.forClass(PublishRequest.class);
-    verify(amazonSns).publish(requestCaptor.capture());
+    verify(snsClient).publish(requestCaptor.capture());
 
     PublishRequest request = requestCaptor.getValue();
-    assertThat("Unexpected topic ARN.", request.getTopicArn(), is(MESSAGE_ARN));
+    assertThat("Unexpected topic ARN.", request.topicArn(), is(MESSAGE_ARN));
 
-    Map<String, Object> message = objectMapper.readValue(request.getMessage(),
+    Map<String, Object> message = objectMapper.readValue(request.message(),
         new TypeReference<>() {
         });
     assertThat("Unexpected message form name.", message.get("formName"),
@@ -138,13 +138,13 @@ class FormBroadcastServiceTest {
     assertThat("Unexpected message form content.",
         formContent.get(FORM_CONTENT_FIELD), is(FORM_CONTENT_FIELD_VALUE));
 
-    Map<String, MessageAttributeValue> messageAttributes = request.getMessageAttributes();
+    Map<String, MessageAttributeValue> messageAttributes = request.messageAttributes();
     assertThat("Unexpected message attribute value.",
-        messageAttributes.get("event_type").getStringValue(), is(MESSAGE_ATTRIBUTE));
+        messageAttributes.get("event_type").stringValue(), is(MESSAGE_ATTRIBUTE));
     assertThat("Unexpected message attribute data type.",
-        messageAttributes.get("event_type").getDataType(), is("String"));
+        messageAttributes.get("event_type").dataType(), is("String"));
 
-    verifyNoMoreInteractions(amazonSns);
+    verifyNoMoreInteractions(snsClient);
   }
 
   @Test
@@ -153,7 +153,7 @@ class FormBroadcastServiceTest {
         = new FormBroadcastEventDto(FORM_NAME_VALUE, FORM_LIFECYCLE_STATE_VALUE, FORM_TRAINEE_VALUE,
         FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
 
-    when(amazonSns.publish(any())).thenThrow(new AmazonSNSException("publish error"));
+    when(snsClient.publish(any(PublishRequest.class))).thenThrow(SnsException.builder().build());
 
     assertDoesNotThrow(() -> service.publishFormBroadcastEvent(formBroadcastEventDto));
   }
@@ -165,18 +165,18 @@ class FormBroadcastServiceTest {
         FORM_TYPE_VALUE, FORM_EVENT_DATE_VALUE, FORM_CONTENT_VALUE);
     SnsRoute fifoSns = new SnsRoute(MESSAGE_ARN + ".fifo", MESSAGE_ATTRIBUTE);
     eventNotificationProperties = new EventNotificationProperties(fifoSns);
-    service = new FormBroadcastService(amazonSns, eventNotificationProperties);
+    service = new FormBroadcastService(snsClient, eventNotificationProperties);
 
     service.publishFormBroadcastEvent(formBroadcastEventDto);
 
     ArgumentCaptor<PublishRequest> requestCaptor = ArgumentCaptor.forClass(PublishRequest.class);
-    verify(amazonSns).publish(requestCaptor.capture());
+    verify(snsClient).publish(requestCaptor.capture());
 
     PublishRequest request = requestCaptor.getValue();
-    assertThat("Unexpected message group id.", request.getMessageGroupId(),
+    assertThat("Unexpected message group id.", request.messageGroupId(),
         is(FORM_TRAINEE_VALUE + "_" + FORM_TYPE_VALUE + "_" + FORM_NAME_VALUE));
 
-    verifyNoMoreInteractions(amazonSns);
+    verifyNoMoreInteractions(snsClient);
   }
 
   @Test
@@ -187,18 +187,18 @@ class FormBroadcastServiceTest {
 
     eventNotificationProperties
         = new EventNotificationProperties(new SnsRoute(MESSAGE_ARN, null));
-    service = new FormBroadcastService(amazonSns, eventNotificationProperties);
+    service = new FormBroadcastService(snsClient, eventNotificationProperties);
 
     service.publishFormBroadcastEvent(formBroadcastEventDto);
 
     ArgumentCaptor<PublishRequest> requestCaptor = ArgumentCaptor.forClass(PublishRequest.class);
-    verify(amazonSns).publish(requestCaptor.capture());
+    verify(snsClient).publish(requestCaptor.capture());
 
     PublishRequest request = requestCaptor.getValue();
 
-    Map<String, MessageAttributeValue> messageAttributes = request.getMessageAttributes();
+    Map<String, MessageAttributeValue> messageAttributes = request.messageAttributes();
     assertNull(messageAttributes.get("event_type"), "Unexpected message attribute value.");
 
-    verifyNoMoreInteractions(amazonSns);
+    verifyNoMoreInteractions(snsClient);
   }
 }
