@@ -1,6 +1,6 @@
 plugins {
   java
-  id("org.springframework.boot") version "2.7.5"
+  id("org.springframework.boot") version "3.2.1"
   id("io.spring.dependency-management") version "1.1.4"
 
   // Code quality plugins
@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "uk.nhs.hee.tis.trainee"
-version = "1.2.0"
+version = "1.2.1"
 
 configurations {
   compileOnly {
@@ -24,9 +24,9 @@ repositories {
 
 dependencyManagement {
   imports {
-    mavenBom("org.springframework.cloud:spring-cloud-dependencies:2021.0.3")
-    mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:2.4.4")
-    mavenBom("com.azure.spring:spring-cloud-azure-dependencies:4.6.0")
+    mavenBom("org.springframework.cloud:spring-cloud-dependencies:2023.0.0")
+    mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:3.1.0")
+    mavenBom("com.azure.spring:spring-cloud-azure-dependencies:5.8.0")
   }
 }
 
@@ -48,18 +48,16 @@ dependencies {
   testAnnotationProcessor("org.mapstruct:mapstruct-processor:${mapstructVersion}")
 
   // Sentry reporting
-  val sentryVersion = "6.32.0"
+  val sentryVersion = "7.1.0"
   implementation("io.sentry:sentry-spring-boot-starter:$sentryVersion")
   implementation("io.sentry:sentry-logback:$sentryVersion")
 
-  // Amazon SQS
-  implementation("io.awspring.cloud:spring-cloud-starter-aws")
-  implementation("io.awspring.cloud:spring-cloud-starter-aws-messaging")
+  implementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
+  implementation("io.awspring.cloud:spring-cloud-aws-starter-sns")
+  implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
 
   implementation("com.azure.spring:spring-cloud-azure-starter")
   implementation("com.azure:azure-storage-file-datalake")
-
-  implementation("commons-io:commons-io:2.15.0")
 
   val testContainersVersion = "1.19.3"
   testImplementation("org.springframework.cloud:spring-cloud-starter")
@@ -68,15 +66,15 @@ dependencies {
   testImplementation("org.testcontainers:junit-jupiter:${testContainersVersion}")
 }
 
-checkstyle {
-  config = resources.text.fromArchiveEntry(configurations.checkstyle.get().first(), "google_checks.xml")
-}
-
 java {
   toolchain {
     languageVersion.set(JavaLanguageVersion.of(17))
     vendor.set(JvmVendorSpec.ADOPTIUM)
   }
+}
+
+checkstyle {
+  config = resources.text.fromArchiveEntry(configurations.checkstyle.get().first(), "google_checks.xml")
 }
 
 sonarqube {

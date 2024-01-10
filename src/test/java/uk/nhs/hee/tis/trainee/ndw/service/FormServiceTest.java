@@ -27,31 +27,29 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.Headers;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 
@@ -78,166 +76,178 @@ class FormServiceTest {
 
   private FormService service;
 
-  private AmazonS3 amazonS3;
+  private S3Client s3Client;
   private DataLakeFileSystemClient dataLakeClient;
   private FormBroadcastService formBroadcastService;
 
   @BeforeEach
   void setUp() {
-    amazonS3 = mock(AmazonS3.class);
+    s3Client = mock(S3Client.class);
     dataLakeClient = mock(DataLakeFileSystemClient.class);
     formBroadcastService = mock(FormBroadcastService.class);
-    service = new FormService(amazonS3, dataLakeClient, "dev", formBroadcastService);
+    service = new FormService(s3Client, dataLakeClient, "dev", formBroadcastService,
+        new ObjectMapper());
   }
 
   @Test
-  void shouldThrowExceptionWhenNoFormNameFound() throws IOException {
+  void shouldThrowExceptionWhenNoFormNameFound() {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata("not-name", FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        "not-name", FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        new byte[0]);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-      assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
-    }
+    assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
   }
 
   @Test
-  void shouldThrowExceptionWhenNoFormTypeFound() throws IOException {
+  void shouldThrowExceptionWhenNoFormTypeFound() {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata("not-form-type", FORM_TYPE_VALID_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        "not-form-type", FORM_TYPE_VALID_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        new byte[0]);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-      assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
-    }
+    assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
   }
 
   @Test
-  void shouldThrowExceptionWhenNoTraineeIdFound() throws IOException {
+  void shouldThrowExceptionWhenNoTraineeIdFound() {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
-    metadata.addUserMetadata("not-trainee-id", FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE,
+        "not-trainee-id", FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        new byte[0]);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-      assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
-    }
+    assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
   }
 
   @Test
-  void shouldThrowExceptionWhenNoLifecycleStateFound() throws IOException {
+  void shouldThrowExceptionWhenNoLifecycleStateFound() {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata("not-form-lifecyle", FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        "not-form-lifecycle", FORM_LIFECYCLE_STATE_VALUE
+    );
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    String formContents = """
+        {
+          "field1": "value1"
+        }""";
+    byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        contents);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
-    }
+    assertThrows(IOException.class, () -> service.processFormEvent(formEvent));
   }
 
   @Test
-  void shouldNotThrowExceptionWhenFormNameAndTypeAndTraineeAndLifecycleFound() throws IOException {
+  void shouldNotThrowExceptionWhenFormNameAndTypeAndTraineeAndLifecycleFound() {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    String formContents = """
+        {
+          "field1": "value1"
+        }""";
+    byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        contents);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-      assertDoesNotThrow(() -> service.processFormEvent(formEvent));
-    }
+    assertDoesNotThrow(() -> service.processFormEvent(formEvent));
   }
 
   @Test
-  void shouldNotThrowExceptionWhenEventVersionNotLatest() throws IOException {
+  void shouldNotThrowExceptionWhenEventVersionNotLatest() {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, "latestVersion");
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId("latestVersion")
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        new byte[0]);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-      assertDoesNotThrow(() -> service.processFormEvent(formEvent));
-    }
+    assertDoesNotThrow(() -> service.processFormEvent(formEvent));
   }
 
   @Test
@@ -247,24 +257,24 @@ class FormServiceTest {
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(new byte[0])) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        new byte[0]);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+    service.processFormEvent(formEvent);
 
-      service.processFormEvent(formEvent);
-
-      verifyNoInteractions(dataLakeClient);
-    }
+    verifyNoInteractions(dataLakeClient);
   }
 
   @ParameterizedTest
@@ -279,12 +289,12 @@ class FormServiceTest {
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, formType);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, formType,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
@@ -298,39 +308,39 @@ class FormServiceTest {
     byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
     long formContentsLength = formContents.getBytes(StandardCharsets.UTF_8).length;
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(contents)) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        contents);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+    service.processFormEvent(formEvent);
 
-      service.processFormEvent(formEvent);
+    ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+    verify(fileClient).upload(streamCaptor.capture(), eq(formContentsLength), eq(true));
 
-      ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
-      verify(fileClient).upload(streamCaptor.capture(), eq(formContentsLength), eq(true));
-
-      InputStream uploadedStream = streamCaptor.getValue();
-      ObjectMapper mapper = new ObjectMapper();
-      FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
-      assertEquals("value1ท", formContentDto.fields.get("field1"));
-    }
+    InputStream uploadedStream = streamCaptor.getValue();
+    ObjectMapper mapper = new ObjectMapper();
+    FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
+    assertEquals("value1ท", formContentDto.fields.get("field1"));
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"formr-a", "formr-b"})
-  void shouldNotThrowExceptionWhenExportedFormCannotBeClosed(String formType) throws IOException {
+  void shouldNotThrowExceptionWhenExportedFormCannotBeRead(String formType) throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, formType);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, formType,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
@@ -339,18 +349,15 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
 
-    InputStream is = mock(InputStream.class);
-    doThrow(IOException.class).when(is).close();
-
-    S3Object document = new S3Object();
-    document.setObjectMetadata(metadata);
-    document.setObjectContent(is);
-
-    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        "invalid".getBytes());
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
     assertDoesNotThrow(() -> service.processFormEvent(formEvent));
-
-    verify(is, times(3)).close();
   }
 
   @ParameterizedTest
@@ -361,12 +368,12 @@ class FormServiceTest {
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, formType);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, formType,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
@@ -375,13 +382,16 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
 
-    S3Object document = new S3Object();
-    document.setObjectMetadata(metadata);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        new byte[0]);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory",
-        formBroadcastService);
+    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
     verify(dataLakeClient).getDirectoryClient("test-directory");
@@ -394,12 +404,12 @@ class FormServiceTest {
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, "formr-a");
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, "formr-a",
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
@@ -421,6 +431,14 @@ class FormServiceTest {
         }
         """.getBytes(StandardCharsets.UTF_8);
 
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        contents);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
+
     String contentsClean = """
         {
           "field1": "  value1",
@@ -431,29 +449,21 @@ class FormServiceTest {
         }
         """;
 
-    try (S3Object document = new S3Object();
-        InputStream contentStream = new ByteArrayInputStream(contents)) {
-      document.setObjectMetadata(metadata);
-      document.setObjectContent(contentStream);
+    service.processFormEvent(formEvent);
 
-      when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+    ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+    verify(fileClient).upload(streamCaptor.capture(), anyLong(), eq(true));
 
-      service.processFormEvent(formEvent);
-
-      ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
-      verify(fileClient).upload(streamCaptor.capture(), anyLong(), eq(true));
-
-      InputStream uploadedStream = streamCaptor.getValue();
-      ObjectMapper mapper = new ObjectMapper();
-      FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
-      FormContentDto expectedFormDto = mapper.readValue(contentsClean, FormContentDto.class);
-      assertEquals(expectedFormDto.fields.get("field1"), formContentDto.fields.get("field1"));
-      assertEquals(expectedFormDto.fields.get("field2"), formContentDto.fields.get("field2"));
-      assertEquals(expectedFormDto.fields.get("field3"), formContentDto.fields.get("field3"));
-      assertEquals(expectedFormDto.fields.get("field4"), formContentDto.fields.get("field4"));
-      assertEquals(expectedFormDto.fields.get("field5_1"), formContentDto.fields.get("field5_1"));
-      assertEquals(expectedFormDto.fields.get("field5_2"), formContentDto.fields.get("field5_2"));
-    }
+    InputStream uploadedStream = streamCaptor.getValue();
+    ObjectMapper mapper = new ObjectMapper();
+    FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
+    FormContentDto expectedFormDto = mapper.readValue(contentsClean, FormContentDto.class);
+    assertEquals(expectedFormDto.fields.get("field1"), formContentDto.fields.get("field1"));
+    assertEquals(expectedFormDto.fields.get("field2"), formContentDto.fields.get("field2"));
+    assertEquals(expectedFormDto.fields.get("field3"), formContentDto.fields.get("field3"));
+    assertEquals(expectedFormDto.fields.get("field4"), formContentDto.fields.get("field4"));
+    assertEquals(expectedFormDto.fields.get("field5_1"), formContentDto.fields.get("field5_1"));
+    assertEquals(expectedFormDto.fields.get("field5_2"), formContentDto.fields.get("field5_2"));
   }
 
   @Test
@@ -463,12 +473,12 @@ class FormServiceTest {
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
@@ -477,20 +487,22 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
 
-    S3Object document = new S3Object();
-    document.setObjectMetadata(metadata);
-
     byte[] contents = """
         {
           "field1": "value1"
         }
         """.getBytes(StandardCharsets.UTF_8);
-    document.setObjectContent(new ByteArrayInputStream(contents));
 
-    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        contents);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory",
-        formBroadcastService);
+    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
     verify(formBroadcastService).publishFormBroadcastEvent(any());
@@ -503,12 +515,12 @@ class FormServiceTest {
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
@@ -517,13 +529,16 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
 
-    S3Object document = new S3Object();
-    document.setObjectMetadata(metadata);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        new byte[0]);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
-
-    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory",
-        formBroadcastService);
+    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
     verifyNoInteractions(formBroadcastService);
@@ -536,12 +551,12 @@ class FormServiceTest {
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
 
-    ObjectMetadata metadata = new ObjectMetadata();
-    metadata.setHeader(Headers.S3_VERSION_ID, VERSION);
-    metadata.addUserMetadata(FORM_NAME_KEY, FORM_NAME_VALUE);
-    metadata.addUserMetadata(FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE);
-    metadata.addUserMetadata(FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE);
-    metadata.addUserMetadata(FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE);
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
@@ -550,20 +565,22 @@ class FormServiceTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
 
-    S3Object document = new S3Object();
-    document.setObjectMetadata(metadata);
-
     byte[] contents = """
         {
           "field1": "value1"
         }
         """.getBytes(StandardCharsets.UTF_8);
-    document.setObjectContent(new ByteArrayInputStream(contents));
 
-    when(amazonS3.getObject(BUCKET, KEY)).thenReturn(document);
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        contents);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(amazonS3, dataLakeClient, "test-directory",
-        formBroadcastService);
+    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
     verifyNoInteractions(formBroadcastService);
