@@ -27,7 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -39,6 +41,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +50,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -298,7 +303,7 @@ class FormServiceTest {
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(subDirectory)).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
 
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
@@ -306,7 +311,6 @@ class FormServiceTest {
     //form content includes a multibyte character to test that length is correctly calculated
     String formContents = "{\"field1\":\"value1ท\"}";
     byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
-    long formContentsLength = formContents.getBytes(StandardCharsets.UTF_8).length;
 
     GetObjectResponse response = GetObjectResponse.builder()
         .metadata(metadata)
@@ -318,7 +322,10 @@ class FormServiceTest {
 
     service.processFormEvent(formEvent);
 
+    verify(directoryClient).createSubdirectoryIfNotExists(subDirectory);
+
     ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+    long formContentsLength = formContents.getBytes(StandardCharsets.UTF_8).length;
     verify(fileClient).upload(streamCaptor.capture(), eq(formContentsLength), eq(true));
 
     InputStream uploadedStream = streamCaptor.getValue();
@@ -397,6 +404,66 @@ class FormServiceTest {
     verify(dataLakeClient).getDirectoryClient("test-directory");
   }
 
+  @ParameterizedTest
+  @CsvSource(delimiter = '|', textBlock = """
+      formr-a | part-a
+      formr-b | part-b
+      """)
+  void shouldUploadToCorrectSubDirectories(String formType, String directory) throws IOException {
+    FormEventDto formEvent = new FormEventDto();
+    formEvent.setBucket(BUCKET);
+    formEvent.setKey(KEY);
+    formEvent.setVersionId(VERSION);
+
+    Map<String, String> metadata = Map.of(
+        FORM_NAME_KEY, FORM_NAME_VALUE,
+        FORM_TYPE_KEY, formType,
+        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+    );
+
+    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
+    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
+
+    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
+    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+
+    byte[] contents = """
+        {
+          "field1": "value1"
+        }
+        """.getBytes(StandardCharsets.UTF_8);
+
+    GetObjectResponse response = GetObjectResponse.builder()
+        .metadata(metadata)
+        .versionId(VERSION)
+        .build();
+    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
+        contents);
+    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
+
+    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+        formBroadcastService, new ObjectMapper());
+    service.processFormEvent(formEvent);
+
+    verify(directoryClient, times(4)).createSubdirectoryIfNotExists(any());
+
+    ZonedDateTime now = ZonedDateTime.now(ZoneId.of("UTC"));
+    int year = now.getYear();
+    String month = String.format("%02d", now.getMonthValue());
+
+    InOrder orderVerifier = inOrder(dataLakeClient, directoryClient, fileClient);
+    orderVerifier.verify(dataLakeClient).getDirectoryClient("test-directory");
+    orderVerifier.verify(directoryClient).createSubdirectoryIfNotExists(directory);
+    orderVerifier.verify(directoryClient).createSubdirectoryIfNotExists("year=" + year);
+    orderVerifier.verify(directoryClient).createSubdirectoryIfNotExists("month=" + year + month);
+    orderVerifier.verify(directoryClient)
+        .createSubdirectoryIfNotExists("day=" + year + month + now.getDayOfMonth());
+    orderVerifier.verify(directoryClient).createFileIfNotExists(FORM_NAME_VALUE);
+    orderVerifier.verify(fileClient).upload(any(), anyLong(), eq(true));
+  }
+
   @Test
   void shouldStripTrailingWhitespaceWhenExporting() throws IOException {
     FormEventDto formEvent = new FormEventDto();
@@ -413,8 +480,7 @@ class FormServiceTest {
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists("part-a"))
-        .thenReturn(directoryClient);
+    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
 
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);

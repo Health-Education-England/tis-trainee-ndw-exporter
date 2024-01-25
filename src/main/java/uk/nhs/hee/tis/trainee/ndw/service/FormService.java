@@ -28,6 +28,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -131,8 +133,46 @@ public class FormService {
    * @return the form content DTO.
    */
   private FormContentDto exportToDataLake(String formName, String formType, byte[] contentBytes) {
-    DataLakeDirectoryClient directoryClient;
+    DataLakeDirectoryClient directoryClient = createSubDirectories(formType);
+
+    if (directoryClient == null) {
+      return null;
+    }
+
     FormContentDto formContentDtoClean = null;
+
+    try {
+      if (contentBytes.length > 0) {
+        FormContentDto formContentDto = mapper.readValue(contentBytes, FormContentDto.class);
+        formContentDtoClean = cleanFormContent(formContentDto);
+        String cleanedString = mapper.writeValueAsString(formContentDtoClean);
+
+        log.info("Exporting form {} of type {}.", formName, formType);
+        byte[] cleanedBytes = cleanedString.getBytes(StandardCharsets.UTF_8);
+        try (ByteArrayInputStream cleanStream = new ByteArrayInputStream(cleanedBytes)) {
+          directoryClient
+              .createFileIfNotExists(formName)
+              .upload(cleanStream, cleanedBytes.length, true);
+          log.info("Exported form {} of type {} to path {}.", formName, formType,
+              directoryClient.getDirectoryPath());
+        }
+      } else {
+        log.warn("Skipping empty form {} of type {}.", formName, formType);
+      }
+    } catch (IOException e) {
+      log.warn("Unable to export content for form {} of type {}.", formName, formType);
+    }
+    return formContentDtoClean;
+  }
+
+  /**
+   * Create the required subdirectories based on form type and current date.
+   *
+   * @param formType The form type being uploaded.
+   * @return The directory client for the required subdirectory, or null if form type not supported.
+   */
+  private DataLakeDirectoryClient createSubDirectories(String formType) {
+    DataLakeDirectoryClient directoryClient;
 
     switch (formType) {
       case "formr-a" -> directoryClient = dataLakeClient
@@ -147,27 +187,16 @@ public class FormService {
       }
     }
 
-    try {
-      if (contentBytes.length > 0) {
-        FormContentDto formContentDto = mapper.readValue(contentBytes, FormContentDto.class);
-        formContentDtoClean = cleanFormContent(formContentDto);
-        String cleanedString = mapper.writeValueAsString(formContentDtoClean);
+    Instant now = Instant.now();
+    ZoneId utcZone = ZoneId.of("UTC");
 
-        log.info("Exporting form {} of type {}.", formName, formType);
-        byte[] cleanedBytes = cleanedString.getBytes(StandardCharsets.UTF_8);
-        try (ByteArrayInputStream cleanStream = new ByteArrayInputStream(cleanedBytes)) {
-          directoryClient
-              .createFileIfNotExists(formName)
-              .upload(cleanStream, cleanedBytes.length, true);
-          log.info("Exported form {} of type {}.", formName, formType);
-        }
-      } else {
-        log.warn("Skipping empty form {} of type {}.", formName, formType);
-      }
-    } catch (IOException e) {
-      log.warn("Unable to export content for form {} of type {}.", formName, formType);
-    }
-    return formContentDtoClean;
+    return directoryClient
+        .createSubdirectoryIfNotExists(
+            DateTimeFormatter.ofPattern("'year='yyyy").withZone(utcZone).format(now))
+        .createSubdirectoryIfNotExists(
+            DateTimeFormatter.ofPattern("'month='yyyyMM").withZone(utcZone).format(now))
+        .createSubdirectoryIfNotExists(
+            DateTimeFormatter.ofPattern("'day='yyyyMMdd").withZone(utcZone).format(now));
   }
 
   /**
@@ -188,7 +217,7 @@ public class FormService {
    *
    * @param o the object to process.
    * @return a copy of the object with trailing whitespace removed if it is a string, otherwise the
-   *     unchanged object.
+   * unchanged object.
    */
   private Object removeTrailingWhitespace(Object o) {
     if (o instanceof String s) {
