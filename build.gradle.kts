@@ -48,8 +48,8 @@ dependencies {
   testAnnotationProcessor("org.mapstruct:mapstruct-processor:${mapstructVersion}")
 
   // Sentry reporting
-  val sentryVersion = "7.4.0"
-  implementation("io.sentry:sentry-spring-boot-starter:$sentryVersion")
+  val sentryVersion = "7.6.0"
+  implementation("io.sentry:sentry-spring-boot-starter-jakarta:$sentryVersion")
   implementation("io.sentry:sentry-logback:$sentryVersion")
 
   implementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
