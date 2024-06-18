@@ -25,24 +25,16 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
-import com.azure.storage.file.datalake.DataLakeFileClient;
-import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +42,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -82,15 +73,15 @@ class FormServiceTest {
   private FormService service;
 
   private S3Client s3Client;
-  private DataLakeFileSystemClient dataLakeClient;
+  private DataLakeFacade dataLakeFacade;
   private FormBroadcastService formBroadcastService;
 
   @BeforeEach
   void setUp() {
     s3Client = mock(S3Client.class);
-    dataLakeClient = mock(DataLakeFileSystemClient.class);
+    dataLakeFacade = mock(DataLakeFacade.class);
     formBroadcastService = mock(FormBroadcastService.class);
-    service = new FormService(s3Client, dataLakeClient, "dev", formBroadcastService,
+    service = new FormService(s3Client, dataLakeFacade, "dev", formBroadcastService,
         new ObjectMapper());
   }
 
@@ -279,7 +270,7 @@ class FormServiceTest {
 
     service.processFormEvent(formEvent);
 
-    verifyNoInteractions(dataLakeClient);
+    verifyNoInteractions(dataLakeFacade);
   }
 
   @ParameterizedTest
@@ -302,13 +293,9 @@ class FormServiceTest {
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createYearMonthDaySubDirectories(any())).thenReturn(directoryClient);
 
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
-
-    //form content includes a multibyte character to test that length is correctly calculated
     String formContents = "{\"field1\":\"value1ท\"}";
     byte[] contents = formContents.getBytes(StandardCharsets.UTF_8);
 
@@ -322,21 +309,14 @@ class FormServiceTest {
 
     service.processFormEvent(formEvent);
 
-    verify(directoryClient).createSubdirectoryIfNotExists(subDirectory);
-
-    ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
-    long formContentsLength = formContents.getBytes(StandardCharsets.UTF_8).length;
-    verify(fileClient).upload(streamCaptor.capture(), eq(formContentsLength), eq(true));
-
-    InputStream uploadedStream = streamCaptor.getValue();
-    ObjectMapper mapper = new ObjectMapper();
-    FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
-    assertEquals("value1ท", formContentDto.fields.get("field1"));
+    verify(dataLakeFacade).createSubDirectory(FORMR_ROOT, subDirectory);
+    verify(dataLakeFacade).createYearMonthDaySubDirectories(directoryClient);
+    verify(dataLakeFacade).saveToDataLake(FORM_NAME_VALUE, formContents, directoryClient);
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"formr-a", "formr-b"})
-  void shouldNotThrowExceptionWhenExportedFormCannotBeRead(String formType) throws IOException {
+  void shouldNotThrowExceptionWhenExportedFormCannotBeRead(String formType) {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -348,13 +328,6 @@ class FormServiceTest {
         FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
         FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
     );
-
-    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
-
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
 
     GetObjectResponse response = GetObjectResponse.builder()
         .metadata(metadata)
@@ -368,8 +341,11 @@ class FormServiceTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"formr-a", "formr-b"})
-  void shouldUploadToSpecifiedDirectory(String formType) throws IOException {
+  @CsvSource(delimiter = '|', textBlock = """
+      formr-a | part-a
+      formr-b | part-b
+      """)
+  void shouldUploadToSpecifiedDirectory(String formType, String directory) throws IOException {
     FormEventDto formEvent = new FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -383,11 +359,7 @@ class FormServiceTest {
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
-
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
 
     GetObjectResponse response = GetObjectResponse.builder()
         .metadata(metadata)
@@ -397,11 +369,11 @@ class FormServiceTest {
         new byte[0]);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
         formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
-    verify(dataLakeClient).getDirectoryClient("test-directory");
+    verify(dataLakeFacade).createSubDirectory("test-directory", directory);
   }
 
   @ParameterizedTest
@@ -423,17 +395,11 @@ class FormServiceTest {
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createYearMonthDaySubDirectories(any())).thenReturn(directoryClient);
 
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
-
-    byte[] contents = """
-        {
-          "field1": "value1"
-        }
-        """.getBytes(StandardCharsets.UTF_8);
+    String contentsString = "{\"field1\":\"value1\"}";
+    byte[] contents = contentsString.getBytes(StandardCharsets.UTF_8);
 
     GetObjectResponse response = GetObjectResponse.builder()
         .metadata(metadata)
@@ -443,25 +409,14 @@ class FormServiceTest {
         contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
         formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
-    verify(directoryClient, times(4)).createSubdirectoryIfNotExists(any());
-
-    ZonedDateTime now = ZonedDateTime.now(ZoneId.of("UTC"));
-    int year = now.getYear();
-    String month = String.format("%02d", now.getMonthValue());
-
-    InOrder orderVerifier = inOrder(dataLakeClient, directoryClient, fileClient);
-    orderVerifier.verify(dataLakeClient).getDirectoryClient("test-directory");
-    orderVerifier.verify(directoryClient).createSubdirectoryIfNotExists(directory);
-    orderVerifier.verify(directoryClient).createSubdirectoryIfNotExists("year=" + year);
-    orderVerifier.verify(directoryClient).createSubdirectoryIfNotExists("month=" + year + month);
-    orderVerifier.verify(directoryClient)
-        .createSubdirectoryIfNotExists("day=" + year + month + now.getDayOfMonth());
-    orderVerifier.verify(directoryClient).createFileIfNotExists(FORM_NAME_VALUE);
-    orderVerifier.verify(fileClient).upload(any(), anyLong(), eq(true));
+    verify(dataLakeFacade).createSubDirectory("test-directory", directory);
+    verify(dataLakeFacade).createYearMonthDaySubDirectories(directoryClient);
+    verify(dataLakeFacade)
+        .saveToDataLake(eq(FORM_NAME_VALUE), eq(contentsString), eq(directoryClient));
   }
 
   @Test
@@ -479,11 +434,8 @@ class FormServiceTest {
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(FORMR_ROOT)).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
-
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(FORM_NAME_VALUE)).thenReturn(fileClient);
+    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createYearMonthDaySubDirectories(any())).thenReturn(directoryClient);
 
     // In theory, there are a number of whitespace characters which should be stripped, but only
     // the common ones are tested for below
@@ -517,12 +469,12 @@ class FormServiceTest {
 
     service.processFormEvent(formEvent);
 
-    ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
-    verify(fileClient).upload(streamCaptor.capture(), anyLong(), eq(true));
+    ArgumentCaptor<String> stringCaptor = ArgumentCaptor.forClass(String.class);
+    verify(dataLakeFacade).saveToDataLake(any(), stringCaptor.capture(), any());
 
-    InputStream uploadedStream = streamCaptor.getValue();
+    String uploadedString = stringCaptor.getValue();
     ObjectMapper mapper = new ObjectMapper();
-    FormContentDto formContentDto = mapper.readValue(uploadedStream, FormContentDto.class);
+    FormContentDto formContentDto = mapper.readValue(uploadedString, FormContentDto.class);
     FormContentDto expectedFormDto = mapper.readValue(contentsClean, FormContentDto.class);
     assertEquals(expectedFormDto.fields.get("field1"), formContentDto.fields.get("field1"));
     assertEquals(expectedFormDto.fields.get("field2"), formContentDto.fields.get("field2"));
@@ -547,11 +499,8 @@ class FormServiceTest {
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
-
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createYearMonthDaySubDirectories(any())).thenReturn(directoryClient);
 
     byte[] contents = """
         {
@@ -567,7 +516,7 @@ class FormServiceTest {
         contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
         formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
@@ -589,11 +538,8 @@ class FormServiceTest {
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
-
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createYearMonthDaySubDirectories(any())).thenReturn(directoryClient);
 
     GetObjectResponse response = GetObjectResponse.builder()
         .metadata(metadata)
@@ -603,7 +549,7 @@ class FormServiceTest {
         new byte[0]);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
         formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
@@ -625,11 +571,8 @@ class FormServiceTest {
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeClient.getDirectoryClient(any())).thenReturn(directoryClient);
-    when(directoryClient.createSubdirectoryIfNotExists(any())).thenReturn(directoryClient);
-
-    DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
-    when(directoryClient.createFileIfNotExists(any())).thenReturn(fileClient);
+    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
+    when(dataLakeFacade.createYearMonthDaySubDirectories(any())).thenReturn(directoryClient);
 
     byte[] contents = """
         {
@@ -645,7 +588,7 @@ class FormServiceTest {
         contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeClient, "test-directory",
+    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
         formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 

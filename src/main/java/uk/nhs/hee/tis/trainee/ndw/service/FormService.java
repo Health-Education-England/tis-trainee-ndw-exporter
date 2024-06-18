@@ -22,14 +22,9 @@
 package uk.nhs.hee.tis.trainee.ndw.service;
 
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
-import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -57,20 +52,29 @@ public class FormService {
   private static final String TRAINEE_ID_METADATA_FIELD = "traineeid";
 
   private final S3Client s3Client;
-  private final DataLakeFileSystemClient dataLakeClient;
   private final FormBroadcastService formBroadcastService;
+  private final DataLakeFacade dataLakeFacade;
 
   private final String getDataLakeFormrRoot;
 
   private final ObjectMapper mapper;
 
-  FormService(S3Client s3Client, DataLakeFileSystemClient dataLakeClient,
+  /**
+   * Initialise the form service.
+   *
+   * @param s3Client             The S3 client to use.
+   * @param directory            The root directory.
+   * @param formBroadcastService The form broadcast service to use.
+   * @param mapper               The object mapper to use.
+   * @param dataLakeFacade      The data lake service to use.
+   */
+  FormService(S3Client s3Client, DataLakeFacade dataLakeFacade,
       @Value("${application.ndw.directory}") String directory,
       FormBroadcastService formBroadcastService, ObjectMapper mapper) {
     this.s3Client = s3Client;
-    this.dataLakeClient = dataLakeClient;
     this.getDataLakeFormrRoot = directory;
     this.formBroadcastService = formBroadcastService;
+    this.dataLakeFacade = dataLakeFacade;
     this.mapper = mapper;
   }
 
@@ -148,14 +152,7 @@ public class FormService {
         String cleanedString = mapper.writeValueAsString(formContentDtoClean);
 
         log.info("Exporting form {} of type {}.", formName, formType);
-        byte[] cleanedBytes = cleanedString.getBytes(StandardCharsets.UTF_8);
-        try (ByteArrayInputStream cleanStream = new ByteArrayInputStream(cleanedBytes)) {
-          directoryClient
-              .createFileIfNotExists(formName)
-              .upload(cleanStream, cleanedBytes.length, true);
-          log.info("Exported form {} of type {} to path {}.", formName, formType,
-              directoryClient.getDirectoryPath());
-        }
+        dataLakeFacade.saveToDataLake(formName, cleanedString, directoryClient);
       } else {
         log.warn("Skipping empty form {} of type {}.", formName, formType);
       }
@@ -175,28 +172,17 @@ public class FormService {
     DataLakeDirectoryClient directoryClient;
 
     switch (formType) {
-      case "formr-a" -> directoryClient = dataLakeClient
-          .getDirectoryClient(getDataLakeFormrRoot)
-          .createSubdirectoryIfNotExists("part-a");
-      case "formr-b" -> directoryClient = dataLakeClient
-          .getDirectoryClient(getDataLakeFormrRoot)
-          .createSubdirectoryIfNotExists("part-b");
+      case "formr-a" -> directoryClient = dataLakeFacade
+          .createSubDirectory(getDataLakeFormrRoot, "part-a");
+      case "formr-b" -> directoryClient = dataLakeFacade
+          .createSubDirectory(getDataLakeFormrRoot, "part-b");
       default -> {
         log.error("{} is not an exportable form type.", formType);
         return null;
       }
     }
 
-    Instant now = Instant.now();
-    ZoneId utcZone = ZoneId.of("UTC");
-
-    return directoryClient
-        .createSubdirectoryIfNotExists(
-            DateTimeFormatter.ofPattern("'year='yyyy").withZone(utcZone).format(now))
-        .createSubdirectoryIfNotExists(
-            DateTimeFormatter.ofPattern("'month='yyyyMM").withZone(utcZone).format(now))
-        .createSubdirectoryIfNotExists(
-            DateTimeFormatter.ofPattern("'day='yyyyMMdd").withZone(utcZone).format(now));
+    return dataLakeFacade.createYearMonthDaySubDirectories(directoryClient);
   }
 
   /**
