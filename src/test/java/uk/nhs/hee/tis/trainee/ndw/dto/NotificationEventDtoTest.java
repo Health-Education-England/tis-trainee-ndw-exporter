@@ -44,7 +44,9 @@ class NotificationEventDtoTest {
         }
         """;
 
-    ObjectMapper mapper = new ObjectMapper();
+    ObjectMapper mapper = new ObjectMapper()
+        .registerModule(new JavaTimeModule())
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     assertThrows(IOException.class, () -> mapper.readValue(json, NotificationEventDto.class));
   }
 
