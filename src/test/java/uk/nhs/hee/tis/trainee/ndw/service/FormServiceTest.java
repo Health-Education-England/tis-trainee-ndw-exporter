@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -68,7 +67,7 @@ class FormServiceTest {
   private static final String FORM_LIFECYCLE_STATE_KEY = "lifecyclestate";
   private static final String FORM_LIFECYCLE_STATE_VALUE = "lifecycle-state-value";
 
-  private static final String FORMR_ROOT = "dev";
+  private static final String FORMR_ROOT = "test-directory";
 
   private FormService service;
 
@@ -81,7 +80,7 @@ class FormServiceTest {
     s3Client = mock(S3Client.class);
     dataLakeFacade = mock(DataLakeFacade.class);
     formBroadcastService = mock(FormBroadcastService.class);
-    service = new FormService(s3Client, dataLakeFacade, "dev", formBroadcastService,
+    service = new FormService(s3Client, dataLakeFacade, FORMR_ROOT, formBroadcastService,
         new ObjectMapper());
   }
 
@@ -369,11 +368,9 @@ class FormServiceTest {
         new byte[0]);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
-        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
-    verify(dataLakeFacade).createSubDirectory("test-directory", directory);
+    verify(dataLakeFacade).createSubDirectory(FORMR_ROOT, directory);
   }
 
   @ParameterizedTest
@@ -409,14 +406,12 @@ class FormServiceTest {
         contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
-        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
-    verify(dataLakeFacade).createSubDirectory("test-directory", directory);
+    verify(dataLakeFacade).createSubDirectory(FORMR_ROOT, directory);
     verify(dataLakeFacade).createYearMonthDaySubDirectories(directoryClient);
     verify(dataLakeFacade)
-        .saveToDataLake(eq(FORM_NAME_VALUE), eq(contentsString), eq(directoryClient));
+        .saveToDataLake(FORM_NAME_VALUE, contentsString, directoryClient);
   }
 
   @Test
@@ -516,8 +511,6 @@ class FormServiceTest {
         contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
-        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
     verify(formBroadcastService).publishFormBroadcastEvent(any());
@@ -549,8 +542,6 @@ class FormServiceTest {
         new byte[0]);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
-        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
     verifyNoInteractions(formBroadcastService);
@@ -588,8 +579,6 @@ class FormServiceTest {
         contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
-    FormService service = new FormService(s3Client, dataLakeFacade, "test-directory",
-        formBroadcastService, new ObjectMapper());
     service.processFormEvent(formEvent);
 
     verifyNoInteractions(formBroadcastService);

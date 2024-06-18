@@ -27,9 +27,7 @@ import static org.mockito.Mockito.verify;
 import java.io.IOException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.NotificationEventDto;
-import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 import uk.nhs.hee.tis.trainee.ndw.service.NotificationService;
 
 class NotificationListenerTest {

@@ -46,7 +46,7 @@ public class NotificationListener {
    *
    * @param event the S3 Event
    * @throws IOException when the notification contents could not be read, or were not correctly
-   * structured.
+   *                     structured.
    */
   @SqsListener(value = "${application.aws.sqs.notification}")
   void getNotificationEvent(NotificationEventDto event) throws IOException {

@@ -3,7 +3,6 @@ package uk.nhs.hee.tis.trainee.ndw.service;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -11,6 +10,9 @@ import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+/**
+ * A facade for interactions with the data lake.
+ */
 @Slf4j
 @Service
 public class DataLakeFacade {

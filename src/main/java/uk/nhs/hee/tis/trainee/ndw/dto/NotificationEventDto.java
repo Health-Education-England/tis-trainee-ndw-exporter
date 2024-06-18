@@ -3,6 +3,20 @@ package uk.nhs.hee.tis.trainee.ndw.dto;
 import java.time.Instant;
 import java.util.Map;
 
+/**
+ * A representation of the notification event.
+ *
+ * @param id           The id.
+ * @param tisReference The TIS reference.
+ * @param type         The type.
+ * @param recipient    The recipient.
+ * @param template     The template content.
+ * @param sentAt       When sent.
+ * @param readAt       When read.
+ * @param status       The notification status.
+ * @param statusDetail Details of the notification status.
+ * @param lastRetry    When last retried (for email).
+ */
 public record NotificationEventDto(
     String id,
     TisReferenceInfo tisReference,
