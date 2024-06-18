@@ -2,7 +2,6 @@ package uk.nhs.hee.tis.trainee.ndw.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -73,7 +72,7 @@ class DataLakeFacadeTest {
     DataLakeFileClient fileClient = mock(DataLakeFileClient.class);
     when(directoryClient.createFileIfNotExists("filename")).thenReturn(fileClient);
 
-    //form content includes a multibyte character to test that length is correctly calculated
+    //content includes a multibyte character to test that length is correctly calculated
     String contents = "{\"field1\":\"value1ท\"}";
 
     facade.saveToDataLake("filename", contents, directoryClient);
