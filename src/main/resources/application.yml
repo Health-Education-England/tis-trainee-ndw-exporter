@@ -34,6 +34,8 @@ logging:
 
 spring:
   cloud:
+    aws:
+      endpoint: ${AWS_ENDPOINT:}
     azure:
       credential:
         client-id: ${AZURE_CLIENT_ID:}
