@@ -44,7 +44,7 @@ public class NotificationListener {
   /**
    * Listen for Notification Events on the SQS queue.
    *
-   * @param event the S3 Event
+   * @param event the Notification Event
    * @throws IOException when the notification contents could not be read, or were not correctly
    *                     structured.
    */
