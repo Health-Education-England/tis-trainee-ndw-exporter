@@ -86,6 +86,21 @@ class NotificationServiceTest {
   }
 
   @Test
+  void shouldNotProcessEventWithNullId() throws JsonProcessingException {
+    TisReferenceInfo tisReferenceInfo = new TisReferenceInfo(REFERENCE_TYPE, REFERENCE_ID);
+    RecipientInfo recipientInfo
+        = new RecipientInfo(RECIPIENT_ID, RECIPIENT_TYPE, RECIPIENT_CONTACT);
+    Map<String, Object> templateMap = Map.of("key1", "value1");
+    TemplateInfo templateInfo = new TemplateInfo(TEMPLATE_NAME, TEMPLATE_VERSION, templateMap);
+    NotificationEventDto event = new NotificationEventDto(null, tisReferenceInfo, TYPE,
+        recipientInfo, templateInfo, SENT_AT, READ_AT, STATUS, STATUS_DETAIL, LAST_RETRY);
+
+    service.processNotificationEvent(event);
+
+    verifyNoInteractions(dataLakeFacade);
+  }
+
+  @Test
   void shouldProcessEvent() throws JsonProcessingException {
     TisReferenceInfo tisReferenceInfo = new TisReferenceInfo(REFERENCE_TYPE, REFERENCE_ID);
     RecipientInfo recipientInfo

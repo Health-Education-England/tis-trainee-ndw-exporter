@@ -61,12 +61,16 @@ public class NotificationService {
       String type = event.type();
       String id = event.id();
       String status = event.status();
-      DataLakeDirectoryClient directoryClient = createSubDirectories();
+      if (id != null) {
+        DataLakeDirectoryClient directoryClient = createSubDirectories();
 
-      log.info("Exporting notification event {} (type {}, {})", id, type, status);
+        log.info("Exporting notification event {} (type {}, {})", id, type, status);
 
-      String eventString = mapper.writeValueAsString(event);
-      dataLakeFacade.saveToDataLake(id, eventString, directoryClient);
+        String eventString = mapper.writeValueAsString(event);
+        dataLakeFacade.saveToDataLake(id, eventString, directoryClient);
+      } else {
+        log.warn("No notification id: {}.", event);
+      }
     } else {
       log.warn("No content in notification.");
     }
