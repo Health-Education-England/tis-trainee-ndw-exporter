@@ -15,6 +15,7 @@ application:
         message-attribute: FORM_R
     sqs:
       form: ${NDW_FORM_QUEUE_URL:}
+      notification: ${NOTIFICATION_QUEUE_URL:}
   ndw:
     endpoint: https://${AZURE_DATA_LAKE_NAME:local}.dfs.core.windows.net/tis-formr
     directory: ${AZURE_DATA_LAKE_DIRECTORY:dev}
@@ -33,6 +34,8 @@ logging:
 
 spring:
   cloud:
+    aws:
+      endpoint: ${AWS_ENDPOINT:}
     azure:
       credential:
         client-id: ${AZURE_CLIENT_ID:}
