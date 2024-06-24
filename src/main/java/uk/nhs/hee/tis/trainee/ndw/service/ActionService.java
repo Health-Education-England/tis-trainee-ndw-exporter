@@ -24,6 +24,7 @@ package uk.nhs.hee.tis.trainee.ndw.service;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -66,7 +67,8 @@ public class ActionService {
         log.info("Exporting action event {} ({})", id, status);
 
         String eventString = mapper.writeValueAsString(event);
-        dataLakeFacade.saveToDataLake(id, eventString, directoryClient);
+        String eventFilename = getEventFilename(id);
+        dataLakeFacade.saveToDataLake(eventFilename, eventString, directoryClient);
       } else {
         log.warn("No action id: {}.", event);
       }
@@ -85,5 +87,26 @@ public class ActionService {
     DataLakeDirectoryClient directoryClient
         = dataLakeFacade.createSubDirectory(dataLakeRoot, DATALAKE_ACTIONS_ROOT);
     return dataLakeFacade.createYearMonthDaySubDirectories(directoryClient);
+  }
+
+  /**
+   * Generate a human-readable filename from an event ID.
+   *
+   * @param eventId The event ID.
+   * @return The human-readable filename.
+   */
+  protected String getEventFilename(String eventId) {
+    String filename;
+    try {
+      filename = UUID.fromString(
+          eventId.replaceFirst(
+              "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)",
+              "$1-$2-$3-$4-$5"
+          )).toString();
+    } catch (IllegalArgumentException e) {
+      log.warn("Action event id is not a UUID: {}", eventId);
+      filename = eventId;
+    }
+    return filename + ".json";
   }
 }

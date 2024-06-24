@@ -21,6 +21,15 @@
 
 package uk.nhs.hee.tis.trainee.ndw.service;
 
+import static java.time.LocalDate.now;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static uk.nhs.hee.tis.trainee.ndw.service.ActionService.DATALAKE_ACTIONS_ROOT;
+
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,14 +41,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import uk.nhs.hee.tis.trainee.ndw.dto.ActionEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.ActionEventDto.TisReferenceInfo;
-
-import static java.time.LocalDate.now;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import static uk.nhs.hee.tis.trainee.ndw.service.ActionService.DATALAKE_ACTIONS_ROOT;
 
 /**
  * Test class for the Action Service.
@@ -107,6 +108,21 @@ class ActionServiceTest {
     verify(dataLakeFacade).createYearMonthDaySubDirectories(directoryClient);
 
     String expectedContent = mapper.writeValueAsString(event);
-    verify(dataLakeFacade).saveToDataLake(EVENT_ID, expectedContent, directoryClient);
+    String expectedFilename = service.getEventFilename(EVENT_ID);
+    verify(dataLakeFacade).saveToDataLake(expectedFilename, expectedContent, directoryClient);
+  }
+
+  @Test
+  void shouldUseRawEventIdAsFilenameIfNotUuid() {
+    String filename = service.getEventFilename("someId");
+    String expectedFilename = "someId.json";
+    assertEquals(expectedFilename, filename);
+  }
+
+  @Test
+  void shouldUseFormattedEventIdAsFilenameIfUuid() {
+    String filename = service.getEventFilename("66753bda4b74e61cdb5e88d9");
+    String expectedFilename = "66753bda-4b74-e61c-db5e-0000000088d9.json";
+    assertEquals(expectedFilename, filename);
   }
 }
