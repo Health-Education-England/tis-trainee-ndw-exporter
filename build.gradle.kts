@@ -59,7 +59,7 @@ dependencies {
   implementation("com.azure.spring:spring-cloud-azure-starter")
   implementation("com.azure:azure-storage-file-datalake")
 
-  val testContainersVersion = "1.19.7"
+  val testContainersVersion = "1.19.8"
   testImplementation("org.springframework.cloud:spring-cloud-starter")
   testImplementation("org.springframework.cloud:spring-cloud-contract-wiremock")
   testImplementation("org.testcontainers:testcontainers:${testContainersVersion}")
