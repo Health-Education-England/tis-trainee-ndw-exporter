@@ -14,6 +14,7 @@ application:
         arn: ${FORM_UPDATED_TOPIC_ARN:}
         message-attribute: FORM_R
     sqs:
+      action: ${ACTION_QUEUE_URL:}
       form: ${NDW_FORM_QUEUE_URL:}
       notification: ${NOTIFICATION_QUEUE_URL:}
   ndw:
