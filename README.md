@@ -37,6 +37,7 @@ TODO
 | LOGGING_EVENT          | NDW event logging level.                                    | DEBUG   |
 | LOGGING_SERVICE        | NDW service logging level.                                  | DEBUG   |
 | **Queues:**            |                                                             |         |
+| ACTION_QUEUE_URL       | Queue to receive Action events.                             |         |
 | NDW_FORM_QUEUE_URL     | Queue to receive AWS S3 Form events.                        |         |
 | NOTIFICATION_QUEUE_URL | Queue to receive Notification events.                       |         |
 
