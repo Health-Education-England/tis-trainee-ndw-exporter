@@ -46,6 +46,7 @@ class DataLakeFacadeTest {
     ZonedDateTime now = ZonedDateTime.now(ZoneId.of("UTC"));
     int year = now.getYear();
     String month = String.format("%02d", now.getMonthValue());
+    String day = String.format("%02d", now.getDayOfMonth());
 
     InOrder orderVerifier = inOrder(directoryClient);
     orderVerifier.verify(directoryClient)
@@ -53,7 +54,7 @@ class DataLakeFacadeTest {
     orderVerifier.verify(directoryClient)
         .createSubdirectoryIfNotExists("month=" + year + month);
     orderVerifier.verify(directoryClient)
-        .createSubdirectoryIfNotExists("day=" + year + month + now.getDayOfMonth());
+        .createSubdirectoryIfNotExists("day=" + year + month + day);
   }
 
   @Test
