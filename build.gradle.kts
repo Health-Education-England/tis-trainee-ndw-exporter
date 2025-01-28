@@ -1,16 +1,16 @@
 plugins {
   java
-  id("org.springframework.boot") version "3.2.3"
-  id("io.spring.dependency-management") version "1.1.4"
+  alias(libs.plugins.spring.boot)
+  alias(libs.plugins.spring.dependency.management)
 
   // Code quality plugins
   checkstyle
   jacoco
-  id("org.sonarqube") version "5.1.0.4882"
+  alias(libs.plugins.sonarqube)
 }
 
 group = "uk.nhs.hee.tis.trainee"
-version = "1.5.0"
+version = "1.5.1"
 
 configurations {
   compileOnly {
@@ -24,9 +24,9 @@ repositories {
 
 dependencyManagement {
   imports {
-    mavenBom("org.springframework.cloud:spring-cloud-dependencies:2023.0.0")
-    mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:3.1.1")
-    mavenBom("com.azure.spring:spring-cloud-azure-dependencies:5.9.1")
+    mavenBom(libs.spring.cloud.dependencies.core.get().toString())
+    mavenBom(libs.spring.cloud.dependencies.aws.get().toString())
+    mavenBom(libs.spring.cloud.dependencies.azure.get().toString())
   }
 }
 
@@ -42,15 +42,12 @@ dependencies {
   annotationProcessor("org.projectlombok:lombok")
 
   // MapStruct
-  val mapstructVersion = "1.5.5.Final"
-  implementation("org.mapstruct:mapstruct:${mapstructVersion}")
-  annotationProcessor("org.mapstruct:mapstruct-processor:${mapstructVersion}")
-  testAnnotationProcessor("org.mapstruct:mapstruct-processor:${mapstructVersion}")
+  implementation(libs.mapstruct.core)
+  annotationProcessor(libs.mapstruct.processor)
+  testAnnotationProcessor(libs.mapstruct.processor)
 
   // Sentry reporting
-  val sentryVersion = "7.10.0"
-  implementation("io.sentry:sentry-spring-boot-starter-jakarta:$sentryVersion")
-  implementation("io.sentry:sentry-logback:$sentryVersion")
+  implementation(libs.bundles.sentry)
 
   implementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
   implementation("io.awspring.cloud:spring-cloud-aws-starter-sns")
@@ -59,11 +56,10 @@ dependencies {
   implementation("com.azure.spring:spring-cloud-azure-starter")
   implementation("com.azure:azure-storage-file-datalake")
 
-  val testContainersVersion = "1.19.7"
   testImplementation("org.springframework.cloud:spring-cloud-starter")
   testImplementation("org.springframework.cloud:spring-cloud-contract-wiremock")
-  testImplementation("org.testcontainers:testcontainers:${testContainersVersion}")
-  testImplementation("org.testcontainers:junit-jupiter:${testContainersVersion}")
+  testImplementation("org.testcontainers:testcontainers")
+  testImplementation("org.testcontainers:junit-jupiter")
 }
 
 java {
