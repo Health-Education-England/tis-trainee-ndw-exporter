@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 
-class FormEventDtoTest {
+class S3FormEventDtoTest {
 
   @Test
   void shouldThrowExceptionIfMultipleRecords() {
@@ -92,7 +92,7 @@ class FormEventDtoTest {
         """;
 
     ObjectMapper mapper = new ObjectMapper();
-    FormEventDto dto = mapper.readValue(json, FormEventDto.class);
+    S3FormEventDto dto = mapper.readValue(json, S3FormEventDto.class);
 
     assertThat("Unexpected bucket.", dto.getBucket(), is("tis-test-bucket"));
     assertThat("Unexpected key.", dto.getKey(), is("47165/forms/formr-a/file.json"));

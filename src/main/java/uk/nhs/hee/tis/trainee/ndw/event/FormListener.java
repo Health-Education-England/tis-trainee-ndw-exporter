@@ -25,8 +25,9 @@ import io.awspring.cloud.sqs.annotation.SqsListener;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
+import uk.nhs.hee.tis.trainee.ndw.service.S3FormService;
 
 /**
  * A listener for S3 Form Events.
@@ -35,9 +36,9 @@ import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 @Component
 public class FormListener {
 
-  private final FormService formService;
+  private final FormService<S3FormEventDto> formService;
 
-  FormListener(FormService formService) {
+  FormListener(FormService<S3FormEventDto> formService) {
     this.formService = formService;
   }
 
@@ -45,10 +46,11 @@ public class FormListener {
    * Listen for S3 Events on the SQS queue.
    *
    * @param event the S3 Event
-   * @throws IOException when the form contents could not be read, or were not correctly structured.
+   * @throws IOException when the form contents could not be read, or were not correctly
+   *                     structured.
    */
   @SqsListener(value = "${application.aws.sqs.form}")
-  void getFormEvent(FormEventDto event) throws IOException {
+  void getS3FormEvent(S3FormEventDto event) throws IOException {
     log.debug("Received form event {}.", event);
     formService.processFormEvent(event);
   }

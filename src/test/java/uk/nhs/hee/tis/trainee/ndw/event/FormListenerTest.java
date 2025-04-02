@@ -27,25 +27,25 @@ import static org.mockito.Mockito.verify;
 import java.io.IOException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
-import uk.nhs.hee.tis.trainee.ndw.service.FormService;
+import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.service.S3FormService;
 
 class FormListenerTest {
 
   private FormListener listener;
-  private FormService service;
+  private S3FormService service;
 
   @BeforeEach
   void setUp() {
-    service = mock(FormService.class);
+    service = mock(S3FormService.class);
     listener = new FormListener(service);
   }
 
   @Test
-  void shouldProcessEvent() throws IOException {
-    FormEventDto event = new FormEventDto();
+  void shouldProcessS3Event() throws IOException {
+    S3FormEventDto event = new S3FormEventDto();
 
-    listener.getFormEvent(event);
+    listener.getS3FormEvent(event);
 
     verify(service).processFormEvent(event);
   }

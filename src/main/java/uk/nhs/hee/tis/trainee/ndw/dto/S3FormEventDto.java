@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright 2025 Crown Copyright (Health Education England)
+ * Copyright 2022 Crown Copyright (Health Education England)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -19,22 +19,39 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package uk.nhs.hee.tis.trainee.ndw.service;
+package uk.nhs.hee.tis.trainee.ndw.dto;
 
-import java.io.IOException;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import lombok.Data;
 
 /**
- * An interface for form services.
+ * A representation of an S3 form event.
  */
-public interface FormService<T extends FormEventDto> {
+@Data
+public class S3FormEventDto implements FormEventDto {
+
+  private String bucket;
+  private String key;
+  private String versionId;
 
   /**
-   * Process the given form Event.
+   * Unpack an S3 event notification to get the FormEventDto properties.
    *
-   * @param event The form event to process.
-   * @throws IOException when the form contents could not be read, or were not correctly
-   *                     structured.
+   * @param records The "Records" node of the S3 event notification.
    */
-  void processFormEvent(T event) throws IOException;
+  @JsonProperty("Records")
+  private void unpackRecord(JsonNode records) {
+    if (records.size() > 1) {
+      // S3 events are singular so this should never happen, but we want to know if it ever does.
+      throw new UnsupportedOperationException("Multi-record events are not supported.");
+    }
+
+    JsonNode s3 = records.get(0).get("s3");
+    bucket = s3.get("bucket").get("name").textValue();
+
+    JsonNode object = s3.get("object");
+    key = object.get("key").asText();
+    versionId = object.get("versionId").textValue();
+  }
 }
