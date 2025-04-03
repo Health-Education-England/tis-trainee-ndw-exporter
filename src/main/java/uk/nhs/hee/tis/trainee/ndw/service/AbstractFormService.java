@@ -65,6 +65,28 @@ public abstract class AbstractFormService<T extends FormEventDto> implements For
    * @return the form content DTO.
    */
   public FormContentDto exportToDataLake(String formName, String formType, byte[] contentBytes) {
+    try {
+      if (contentBytes.length > 0) {
+        FormContentDto formContentDto = mapper.readValue(contentBytes, FormContentDto.class);
+        return exportToDataLake(formName, formType, formContentDto);
+      } else {
+        log.warn("Skipping empty form {} of type {}.", formName, formType);
+      }
+    } catch (IOException e) {
+      log.warn("Unable to export content for form {} of type {}.", formName, formType);
+    }
+    return null;
+  }
+
+  /**
+   * Export a form to the data lake.
+   *
+   * @param formName The file name of the form.
+   * @param formType The form's type.
+   * @param content  The form content to upload.
+   * @return the form content DTO.
+   */
+  public FormContentDto exportToDataLake(String formName, String formType, FormContentDto content) {
     DataLakeDirectoryClient directoryClient = createSubDirectories(formType);
 
     if (directoryClient == null) {
@@ -74,16 +96,11 @@ public abstract class AbstractFormService<T extends FormEventDto> implements For
     FormContentDto formContentDtoClean = null;
 
     try {
-      if (contentBytes.length > 0) {
-        FormContentDto formContentDto = mapper.readValue(contentBytes, FormContentDto.class);
-        formContentDtoClean = cleanFormContent(formContentDto);
-        String cleanedString = mapper.writeValueAsString(formContentDtoClean);
+      formContentDtoClean = cleanFormContent(content);
+      String cleanedString = mapper.writeValueAsString(formContentDtoClean);
 
-        log.info("Exporting form {} of type {}.", formName, formType);
-        dataLakeFacade.saveToDataLake(formName, cleanedString, directoryClient);
-      } else {
-        log.warn("Skipping empty form {} of type {}.", formName, formType);
-      }
+      log.info("Exporting form {} of type {}.", formName, formType);
+      dataLakeFacade.saveToDataLake(formName, cleanedString, directoryClient);
     } catch (IOException e) {
       log.warn("Unable to export content for form {} of type {}.", formName, formType);
     }
@@ -104,6 +121,8 @@ public abstract class AbstractFormService<T extends FormEventDto> implements For
           .createSubDirectory(dataLakeRoot, "part-a");
       case "formr-b" -> directoryClient = dataLakeFacade
           .createSubDirectory(dataLakeRoot, "part-b");
+      case "ltft" -> directoryClient = dataLakeFacade
+          .createSubDirectory(dataLakeRoot, "ltft");
       default -> {
         log.error("{} is not an exportable form type.", formType);
         return null;

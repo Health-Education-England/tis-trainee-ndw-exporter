@@ -49,7 +49,7 @@ import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 
 /**
- * Test class for the Form Service.
+ * Test class for the S3 Form Service.
  */
 class S3FormServiceTest {
 
@@ -360,12 +360,15 @@ class S3FormServiceTest {
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
 
+    String contentsString = "{\"field1\":\"value1\"}";
+    byte[] contents = contentsString.getBytes(StandardCharsets.UTF_8);
+
     GetObjectResponse response = GetObjectResponse.builder()
         .metadata(metadata)
         .versionId(VERSION)
         .build();
     ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
-        new byte[0]);
+        contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
     service.processFormEvent(formEvent);

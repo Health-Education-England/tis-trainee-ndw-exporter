@@ -15,7 +15,9 @@ application:
         message-attribute: FORM_R
     sqs:
       action: ${ACTION_QUEUE_URL:}
-      form: ${NDW_FORM_QUEUE_URL:}
+      form:
+        s3: ${NDW_S3_FORM_QUEUE_URL:}
+        ltft: ${NDW_LTFT_FORM_QUEUE_URL:}
       notification: ${NOTIFICATION_QUEUE_URL:}
   ndw:
     endpoint: https://${AZURE_DATA_LAKE_NAME:local}.dfs.core.windows.net/tis-formr
