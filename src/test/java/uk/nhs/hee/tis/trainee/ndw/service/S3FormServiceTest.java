@@ -46,12 +46,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 
 /**
- * Test class for the Form Service.
+ * Test class for the S3 Form Service.
  */
-class FormServiceTest {
+class S3FormServiceTest {
 
   private static final String BUCKET = "bucket123";
   private static final String KEY = "abc/123.json";
@@ -69,7 +69,7 @@ class FormServiceTest {
 
   private static final String FORMR_ROOT = "test-directory";
 
-  private FormService service;
+  private S3FormService service;
 
   private S3Client s3Client;
   private DataLakeFacade dataLakeFacade;
@@ -80,13 +80,13 @@ class FormServiceTest {
     s3Client = mock(S3Client.class);
     dataLakeFacade = mock(DataLakeFacade.class);
     formBroadcastService = mock(FormBroadcastService.class);
-    service = new FormService(s3Client, dataLakeFacade, FORMR_ROOT, formBroadcastService,
+    service = new S3FormService(s3Client, dataLakeFacade, FORMR_ROOT, formBroadcastService,
         new ObjectMapper());
   }
 
   @Test
   void shouldThrowExceptionWhenNoFormNameFound() {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -111,7 +111,7 @@ class FormServiceTest {
 
   @Test
   void shouldThrowExceptionWhenNoFormTypeFound() {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -136,7 +136,7 @@ class FormServiceTest {
 
   @Test
   void shouldThrowExceptionWhenNoTraineeIdFound() {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -161,7 +161,7 @@ class FormServiceTest {
 
   @Test
   void shouldThrowExceptionWhenNoLifecycleStateFound() {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -192,7 +192,7 @@ class FormServiceTest {
 
   @Test
   void shouldNotThrowExceptionWhenFormNameAndTypeAndTraineeAndLifecycleFound() {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -222,7 +222,7 @@ class FormServiceTest {
 
   @Test
   void shouldNotThrowExceptionWhenEventVersionNotLatest() {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -247,7 +247,7 @@ class FormServiceTest {
 
   @Test
   void shouldNotExportFormWhenUnsupportedFormType() throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -279,7 +279,7 @@ class FormServiceTest {
       """)
   void shouldExportFormWhenFormTypeIsFormr(String formType, String subDirectory)
       throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -316,7 +316,7 @@ class FormServiceTest {
   @ParameterizedTest
   @ValueSource(strings = {"formr-a", "formr-b"})
   void shouldNotThrowExceptionWhenExportedFormCannotBeRead(String formType) {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -345,7 +345,7 @@ class FormServiceTest {
       formr-b | part-b
       """)
   void shouldUploadToSpecifiedDirectory(String formType, String directory) throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -360,12 +360,15 @@ class FormServiceTest {
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
     when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
 
+    String contentsString = "{\"field1\":\"value1\"}";
+    byte[] contents = contentsString.getBytes(StandardCharsets.UTF_8);
+
     GetObjectResponse response = GetObjectResponse.builder()
         .metadata(metadata)
         .versionId(VERSION)
         .build();
     ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
-        new byte[0]);
+        contents);
     when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
 
     service.processFormEvent(formEvent);
@@ -379,7 +382,7 @@ class FormServiceTest {
       formr-b | part-b
       """)
   void shouldUploadToCorrectSubDirectories(String formType, String directory) throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -416,7 +419,7 @@ class FormServiceTest {
 
   @Test
   void shouldStripTrailingWhitespaceWhenExporting() throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -481,7 +484,7 @@ class FormServiceTest {
 
   @Test
   void shouldBroadcastValidFormEvent() throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -518,7 +521,7 @@ class FormServiceTest {
 
   @Test
   void shouldNotBroadcastFormEventIfNoFormContent() throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);
@@ -549,7 +552,7 @@ class FormServiceTest {
 
   @Test
   void shouldNotBroadcastFormEventIfUnrecognizedFormType() throws IOException {
-    FormEventDto formEvent = new FormEventDto();
+    S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
     formEvent.setVersionId(VERSION);

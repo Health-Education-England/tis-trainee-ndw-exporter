@@ -24,8 +24,10 @@ package uk.nhs.hee.tis.trainee.ndw.event;
 import io.awspring.cloud.sqs.annotation.SqsListener;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Component;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 
 /**
@@ -35,21 +37,46 @@ import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 @Component
 public class FormListener {
 
-  private final FormService formService;
+  private final FormService<S3FormEventDto> s3FormService;
+  private final FormService<JsonFormEventDto> jsonFormService;
 
-  FormListener(FormService formService) {
-    this.formService = formService;
+  FormListener(FormService<S3FormEventDto> s3FormService,
+      FormService<JsonFormEventDto> jsonFormService) {
+    this.s3FormService = s3FormService;
+    this.jsonFormService = jsonFormService;
   }
 
   /**
    * Listen for S3 Events on the SQS queue.
    *
    * @param event the S3 Event
-   * @throws IOException when the form contents could not be read, or were not correctly structured.
+   * @throws IOException when the form contents could not be read, or were not correctly
+   *                     structured.
    */
-  @SqsListener(value = "${application.aws.sqs.form}")
-  void getFormEvent(FormEventDto event) throws IOException {
-    log.debug("Received form event {}.", event);
-    formService.processFormEvent(event);
+  @SqsListener(value = "${application.aws.sqs.form.s3}")
+  void getS3FormEvent(S3FormEventDto event) throws IOException {
+    log.debug("Received S3 form event {}.", event);
+    s3FormService.processFormEvent(event);
+  }
+
+  /**
+   * Listen for LTFT Events on the SQS queue.
+   *
+   * @param event the LTFT Event
+   * @throws IOException when the form contents could not be read, or were not correctly
+   *                     structured.
+   */
+  @SqsListener(value = "${application.aws.sqs.form.ltft}")
+  void getLtftFormEvent(JsonFormEventDto event) throws IllegalArgumentException, IOException {
+    String id = (String) event.fields.get("id");
+
+    if (Strings.isBlank(id)) {
+      throw new IllegalArgumentException("ID must not be null.");
+    }
+
+    log.debug("Received LTFT event for form ID {}.", id);
+    event.setFormName(id + ".json");
+    event.setFormType("ltft");
+    jsonFormService.processFormEvent(event);
   }
 }

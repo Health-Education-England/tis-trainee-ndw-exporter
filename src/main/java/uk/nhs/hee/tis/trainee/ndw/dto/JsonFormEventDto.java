@@ -19,22 +19,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package uk.nhs.hee.tis.trainee.ndw.service;
+package uk.nhs.hee.tis.trainee.ndw.dto;
 
-import java.io.IOException;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
- * An interface for form services.
+ * A representation of a raw JSON form event.
  */
-public interface FormService<T extends FormEventDto> {
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class JsonFormEventDto extends FormContentDto implements FormEventDto {
 
-  /**
-   * Process the given form Event.
-   *
-   * @param event The form event to process.
-   * @throws IOException when the form contents could not be read, or were not correctly
-   *                     structured.
-   */
-  void processFormEvent(T event) throws IOException;
+  private String formName;
+  private String formType;
 }

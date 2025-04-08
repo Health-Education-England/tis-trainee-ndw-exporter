@@ -21,20 +21,34 @@
 
 package uk.nhs.hee.tis.trainee.ndw.service;
 
-import java.io.IOException;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
 
 /**
- * An interface for form services.
+ * A service for processing raw JSON form events.
  */
-public interface FormService<T extends FormEventDto> {
+@Slf4j
+@Service
+public class JsonFormService extends AbstractFormService<JsonFormEventDto> {
 
   /**
-   * Process the given form Event.
+   * Initialise the form service.
    *
-   * @param event The form event to process.
-   * @throws IOException when the form contents could not be read, or were not correctly
-   *                     structured.
+   * @param dataLakeFacade The data lake service to use.
+   * @param directory      The root directory.
+   * @param mapper         The object mapper to use.
    */
-  void processFormEvent(T event) throws IOException;
+  JsonFormService(DataLakeFacade dataLakeFacade,
+      @Value("${application.ndw.directory}") String directory, ObjectMapper mapper) {
+    super(dataLakeFacade, directory, mapper);
+  }
+
+  @Override
+  public void processFormEvent(JsonFormEventDto event) {
+    log.info("Processing form event for {}", event);
+    exportToDataLake(event.getFormName(), event.getFormType(), event);
+  }
 }

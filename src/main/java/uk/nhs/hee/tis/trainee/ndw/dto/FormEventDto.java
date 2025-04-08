@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright 2022 Crown Copyright (Health Education England)
+ * Copyright 2025 Crown Copyright (Health Education England)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
  * associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -21,37 +21,9 @@
 
 package uk.nhs.hee.tis.trainee.ndw.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import lombok.Data;
-
 /**
  * A representation of a form event.
  */
-@Data
-public class FormEventDto {
+public interface FormEventDto {
 
-  private String bucket;
-  private String key;
-  private String versionId;
-
-  /**
-   * Unpack an S3 event notification to get the FormEventDto properties.
-   *
-   * @param records The "Records" node of the S3 event notification.
-   */
-  @JsonProperty("Records")
-  private void unpackRecord(JsonNode records) {
-    if (records.size() > 1) {
-      // S3 events are singular so this should never happen, but we want to know if it ever does.
-      throw new UnsupportedOperationException("Multi-record events are not supported.");
-    }
-
-    JsonNode s3 = records.get(0).get("s3");
-    bucket = s3.get("bucket").get("name").textValue();
-
-    JsonNode object = s3.get("object");
-    key = object.get("key").asText();
-    versionId = object.get("versionId").textValue();
-  }
 }
