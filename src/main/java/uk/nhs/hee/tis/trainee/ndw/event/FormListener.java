@@ -25,6 +25,8 @@ import io.awspring.cloud.sqs.annotation.SqsListener;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
 import org.springframework.stereotype.Component;
 import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
@@ -77,6 +79,26 @@ public class FormListener {
     log.debug("Received LTFT event for form ID {}.", id);
     event.setFormName(id + ".json");
     event.setFormType("ltft");
+    jsonFormService.processFormEvent(event);
+  }
+
+  @SqsListener(value = "${application.aws.sqs.form.formr}")
+  void getFormRFormEvent(Message<JsonFormEventDto> message)
+      throws IllegalArgumentException, IOException {
+    JsonFormEventDto event = message.getPayload();
+    MessageHeaders attributes = message.getHeaders();
+    String id = (String) event.fields.get("id");
+
+    if (Strings.isBlank(id)) {
+      throw new IllegalArgumentException("ID must not be null.");
+    }
+
+    log.debug("Received FormR event for form ID {}.", id);
+    event.setFormName(id + ".json");
+    if (attributes.get("formType") == null) {
+      throw new IllegalArgumentException("Trigger attribute must not be null.");
+    }
+    event.setFormType((String) attributes.get("formType")); //should be formr-a or formr-b
     jsonFormService.processFormEvent(event);
   }
 }

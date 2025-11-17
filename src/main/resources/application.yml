@@ -18,6 +18,7 @@ application:
       form:
         s3: ${NDW_S3_FORM_QUEUE_URL:}
         ltft: ${NDW_LTFT_FORM_QUEUE_URL:}
+        formr: ${NDW_FORMR_FORM_QUEUE_URL:}
       notification: ${NOTIFICATION_QUEUE_URL:}
   ndw:
     endpoint: https://${AZURE_DATA_LAKE_NAME:local}.dfs.core.windows.net/tis-formr
