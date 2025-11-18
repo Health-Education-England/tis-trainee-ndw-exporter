@@ -516,42 +516,11 @@ class S3FormServiceTest {
 
     service.processFormEvent(formEvent);
 
-    verify(formBroadcastService).publishFormBroadcastEvent(any());
+    verify(formBroadcastService).broadcastFormEvent(any(), any(), any(), any(), any());
   }
 
   @Test
-  void shouldNotBroadcastFormEventIfNoFormContent() throws IOException {
-    S3FormEventDto formEvent = new S3FormEventDto();
-    formEvent.setBucket(BUCKET);
-    formEvent.setKey(KEY);
-    formEvent.setVersionId(VERSION);
-
-    Map<String, String> metadata = Map.of(
-        FORM_NAME_KEY, FORM_NAME_VALUE,
-        FORM_TYPE_KEY, FORM_TYPE_VALID_VALUE,
-        FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
-        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
-    );
-
-    DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
-    when(dataLakeFacade.createSubDirectory(any(), any())).thenReturn(directoryClient);
-    when(dataLakeFacade.createYearMonthDaySubDirectories(any())).thenReturn(directoryClient);
-
-    GetObjectResponse response = GetObjectResponse.builder()
-        .metadata(metadata)
-        .versionId(VERSION)
-        .build();
-    ResponseBytes<GetObjectResponse> responseBytes = ResponseBytes.fromByteArray(response,
-        new byte[0]);
-    when(s3Client.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(responseBytes);
-
-    service.processFormEvent(formEvent);
-
-    verifyNoInteractions(formBroadcastService);
-  }
-
-  @Test
-  void shouldNotBroadcastFormEventIfUnrecognizedFormType() throws IOException {
+  void shouldNotBroadcastFormEventIfLifecycleStateIsSubmitted() throws IOException {
     S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
@@ -561,7 +530,7 @@ class S3FormServiceTest {
         FORM_NAME_KEY, FORM_NAME_VALUE,
         FORM_TYPE_KEY, FORM_TYPE_UNCHECKED_VALUE,
         FORM_TRAINEE_KEY, FORM_TRAINEE_VALUE,
-        FORM_LIFECYCLE_STATE_KEY, FORM_LIFECYCLE_STATE_VALUE
+        FORM_LIFECYCLE_STATE_KEY, "SUBMITTED"
     );
 
     DataLakeDirectoryClient directoryClient = mock(DataLakeDirectoryClient.class);
