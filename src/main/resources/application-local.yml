@@ -1,0 +1,32 @@
+application:
+  environment: local
+  file-store:
+    bucket: tis-trainee-documents-upload-local
+  aws:
+    sns:
+      form-updated-event:
+        arn: arn:aws:sns:eu-west-2:${local.account-id}:tis-trainee-update-form-event
+        message-attribute: FORM_R
+    sqs:
+      action: ${local.sqs-path}/tis-trainee-ndw-local-action-event
+      form:
+        s3: ${local.sqs-path}/tis-trainee-ndw-local-form-event
+        ltft: ${local.sqs-path}/tis-trainee-ndw-local-ltft-form-event
+        formr: ${local.sqs-path}/tis-trainee-ndw-local-formr-form-event
+      notification: ${local.sqs-path}/tis-trainee-ndw-local-notification-event
+
+local:
+  account-id: "000000000000"
+  sqs-path: ${spring.cloud.aws.endpoint}/${local.account-id}
+
+spring:
+  cloud:
+    aws:
+      credentials:
+        access-key: ${local.account-id}
+        secret-key: ${local.account-id}
+      endpoint: http://${LOCALSTACK_HOST:localhost}:4566
+      region:
+        static: eu-west-2
+      s3:
+        path-style-access-enabled: true

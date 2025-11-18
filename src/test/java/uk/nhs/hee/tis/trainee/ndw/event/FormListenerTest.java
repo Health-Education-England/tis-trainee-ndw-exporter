@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
@@ -95,6 +97,81 @@ class FormListenerTest {
     event.set("field1", "value1");
 
     assertThrows(IllegalArgumentException.class, () -> listener.getLtftFormEvent(event));
+
+    verify(jsonService, never()).processFormEvent(any());
+  }
+
+  @Test
+  void shouldProcessFormREventWhenIdAndFormTypeNotNull() throws IOException {
+    JsonFormEventDto event = new JsonFormEventDto();
+    event.set("id", "456");
+    event.set("traineeTisId", "12345");
+    event.set("field2", "value2");
+
+    Message<JsonFormEventDto> message = MessageBuilder.withPayload(event)
+        .setHeader("formType", "formr-a")
+        .build();
+
+    listener.getFormRFormEvent(message);
+
+    ArgumentCaptor<JsonFormEventDto> eventCaptor = ArgumentCaptor.captor();
+    verify(jsonService).processFormEvent(eventCaptor.capture());
+
+    JsonFormEventDto capturedEvent = eventCaptor.getValue();
+    assertThat("Unexpected form name.", capturedEvent.getFormName(), is("456.json"));
+    assertThat("Unexpected form type.", capturedEvent.getFormType(), is("formr-a"));
+
+    Map<String, Object> eventContent = capturedEvent.fields;
+    assertThat("Unexpected form content size.", eventContent.keySet(), hasSize(3));
+    assertThat("Unexpected form ID.", eventContent.get("id"), is("456"));
+    assertThat("Unexpected trainee ID.", eventContent.get("traineeTisId"), is("12345"));
+    assertThat("Unexpected form field.", eventContent.get("field2"), is("value2"));
+  }
+
+  @Test
+  void shouldProcessFormREventWithFormRbType() throws IOException {
+    JsonFormEventDto event = new JsonFormEventDto();
+    event.set("id", "789");
+    event.set("traineeTisId", "67890");
+
+    Message<JsonFormEventDto> message = MessageBuilder.withPayload(event)
+        .setHeader("formType", "formr-b")
+        .build();
+
+    listener.getFormRFormEvent(message);
+
+    ArgumentCaptor<JsonFormEventDto> eventCaptor = ArgumentCaptor.captor();
+    verify(jsonService).processFormEvent(eventCaptor.capture());
+
+    JsonFormEventDto capturedEvent = eventCaptor.getValue();
+    assertThat("Unexpected form type.", capturedEvent.getFormType(), is("formr-b"));
+  }
+
+  @ParameterizedTest
+  @NullAndEmptySource
+  void shouldThrowExceptionProcessingFormREventWhenIdNull(String id) throws IOException {
+    JsonFormEventDto event = new JsonFormEventDto();
+    event.set("id", id);
+    event.set("traineeTisId", "12345");
+
+    Message<JsonFormEventDto> message = MessageBuilder.withPayload(event)
+        .setHeader("formType", "formr-a")
+        .build();
+
+    assertThrows(IllegalArgumentException.class, () -> listener.getFormRFormEvent(message));
+
+    verify(jsonService, never()).processFormEvent(any());
+  }
+
+  @Test
+  void shouldThrowExceptionProcessingFormREventWhenFormTypeNull() throws IOException {
+    JsonFormEventDto event = new JsonFormEventDto();
+    event.set("id", "456");
+    event.set("traineeTisId", "12345");
+
+    Message<JsonFormEventDto> message = MessageBuilder.withPayload(event).build();
+
+    assertThrows(IllegalArgumentException.class, () -> listener.getFormRFormEvent(message));
 
     verify(jsonService, never()).processFormEvent(any());
   }
