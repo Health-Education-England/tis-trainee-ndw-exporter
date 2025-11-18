@@ -23,7 +23,6 @@ package uk.nhs.hee.tis.trainee.ndw.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +32,6 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 
@@ -70,7 +68,7 @@ public class S3FormService extends AbstractFormService<S3FormEventDto> {
   }
 
   @Override
-  public void processFormEvent(S3FormEventDto event) throws IOException {
+  public FormContentDto processFormEvent(S3FormEventDto event) throws IOException {
     log.info("Processing form event for {}/{}", event.getBucket(), event.getKey());
     GetObjectRequest request = GetObjectRequest.builder()
         .bucket(event.getBucket())
@@ -87,50 +85,33 @@ public class S3FormService extends AbstractFormService<S3FormEventDto> {
 
     Map<String, String> userMetadata = responseBytes.response().metadata();
 
-    if (userMetadata.containsKey(NAME_METADATA_FIELD) && userMetadata.containsKey(
-        FORM_TYPE_METADATA_FIELD)) {
+    if (userMetadata.containsKey(NAME_METADATA_FIELD)
+        && userMetadata.containsKey(FORM_TYPE_METADATA_FIELD)
+        && userMetadata.containsKey(LIFECYCLE_STATE_METADATA_FIELD)) {
       String formName = userMetadata.get(NAME_METADATA_FIELD);
       String formType = userMetadata.get(FORM_TYPE_METADATA_FIELD);
+      String lifecycleState = userMetadata.get(LIFECYCLE_STATE_METADATA_FIELD);
       log.info("Retrieved form {} of type {}.", formName, formType);
 
-      FormContentDto formContentDto = exportToDataLake(formName, formType,
-          responseBytes.asByteArray());
+      if (!lifecycleState.equals("SUBMITTED")) {
+        FormContentDto formContentDto = exportToDataLake(formName, formType,
+            responseBytes.asByteArray());
 
-      if (userMetadata.containsKey(TRAINEE_ID_METADATA_FIELD)
-          && userMetadata.containsKey(LIFECYCLE_STATE_METADATA_FIELD)) {
-        String traineeId = userMetadata.get(TRAINEE_ID_METADATA_FIELD);
-        String lifecycleState = userMetadata.get(LIFECYCLE_STATE_METADATA_FIELD);
-        broadcastFormEvent(formName, formType, traineeId, lifecycleState, formContentDto);
-      } else {
-        log.error("File {}/{} did not have the expected metadata for broadcasting the event.",
-            event.getBucket(), event.getKey());
-        throw new IOException("Unexpected document contents.");
+        if (userMetadata.containsKey(TRAINEE_ID_METADATA_FIELD)) {
+          String traineeId = userMetadata.get(TRAINEE_ID_METADATA_FIELD);
+          formBroadcastService.broadcastFormEvent(formName, formType, traineeId, lifecycleState,
+              formContentDto);
+        } else {
+          log.error("File {}/{} did not have the expected metadata for broadcasting the event.",
+              event.getBucket(), event.getKey());
+          throw new IOException("Unexpected document contents.");
+        }
       }
     } else {
       log.error("File {}/{} did not have the expected metadata.", event.getBucket(),
           event.getKey());
       throw new IOException("Unexpected document contents.");
     }
-  }
-
-  /**
-   * Broadcast a form event using the form broadcast service.
-   *
-   * @param formName       The name of the form.
-   * @param formType       The type of the form (e.g. formr-a, formr-b).
-   * @param traineeId      The trainee TIS ID.
-   * @param lifecycleState The lifecycle state of the form (e.g. SUBMITTED, DELETED).
-   * @param formContentDto The form content.
-   */
-  private void broadcastFormEvent(String formName, String formType, String traineeId,
-      String lifecycleState, FormContentDto formContentDto) {
-    if (formContentDto != null) {
-      log.info("Broadcasting event for form {}", formName);
-      FormBroadcastEventDto formBroadcastEventDto = new FormBroadcastEventDto(
-          formName, lifecycleState, traineeId, formType, Instant.now(), formContentDto);
-      formBroadcastService.publishFormBroadcastEvent(formBroadcastEventDto);
-    } else {
-      log.warn("No content in form {} of type {}, skipping event broadcast.", formName, formType);
-    }
+    return null;
   }
 }
