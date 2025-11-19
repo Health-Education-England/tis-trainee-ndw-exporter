@@ -92,20 +92,21 @@ public class FormListener {
     JsonFormEventDto event = message.getPayload();
     MessageHeaders attributes = message.getHeaders();
     String id = (String) event.fields.get("id");
-    String formName = id + ".json";
-    String formType = (String) attributes.get("formType"); //should be formr-a or formr-b
-    String traineeId = (String) event.fields.get("traineeTisId");
-    String lifecycleState = (String) event.fields.get("lifecycleState");
 
     if (Strings.isBlank(id)) {
       throw new IllegalArgumentException("ID must not be null.");
     }
 
     log.debug("Received FormR event for form ID {}.", id);
+    String formName = id + ".json";
     event.setFormName(formName);
     if (attributes.get("formType") == null) {
       throw new IllegalArgumentException("Trigger attribute must not be null.");
     }
+
+    String formType = (String) attributes.get("formType"); //should be formr-a or formr-b
+    String traineeId = (String) event.fields.get("traineeTisId");
+    String lifecycleState = (String) event.fields.get("lifecycleState");
     event.setFormType(formType);
     FormContentDto formContentDto = jsonFormService.processFormEvent(event);
     formBroadcastService.broadcastFormEvent(formName, formType, traineeId, lifecycleState,
