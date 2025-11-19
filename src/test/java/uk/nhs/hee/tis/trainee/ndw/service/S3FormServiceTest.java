@@ -191,7 +191,7 @@ class S3FormServiceTest {
   }
 
   @Test
-  void shouldThrowExceptionIfLifecycleStateIsNull() throws IOException {
+  void shouldThrowExceptionIfLifecycleStateIsNull() {
     S3FormEventDto formEvent = new S3FormEventDto();
     formEvent.setBucket(BUCKET);
     formEvent.setKey(KEY);
