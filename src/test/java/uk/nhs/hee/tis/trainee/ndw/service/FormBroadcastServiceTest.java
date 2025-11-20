@@ -22,6 +22,7 @@
 package uk.nhs.hee.tis.trainee.ndw.service;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -82,6 +83,53 @@ class FormBroadcastServiceTest {
     service = new FormBroadcastService(snsClient, eventNotificationProperties);
 
     FORM_CONTENT_VALUE.fields.put(FORM_CONTENT_FIELD, FORM_CONTENT_FIELD_VALUE);
+  }
+
+  @Test
+  void shouldNotBroadcastFormBroadcastEventIfFormContentIsNull() {
+    service.broadcastFormEvent(FORM_NAME_VALUE, FORM_TYPE_VALUE, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_VALUE, null);
+
+    verifyNoInteractions(snsClient);
+  }
+
+  @Test
+  void shouldBroadcastFormWithValidBroadcastEvent() throws JsonProcessingException {
+    service.broadcastFormEvent(FORM_NAME_VALUE, FORM_TYPE_VALUE, FORM_TRAINEE_VALUE,
+        FORM_LIFECYCLE_STATE_VALUE, FORM_CONTENT_VALUE);
+
+    ArgumentCaptor<PublishRequest> requestCaptor = ArgumentCaptor.forClass(PublishRequest.class);
+    verify(snsClient).publish(requestCaptor.capture());
+
+    PublishRequest request = requestCaptor.getValue();
+    assertThat("Unexpected topic ARN.", request.topicArn(), is(MESSAGE_ARN));
+
+    Map<String, Object> message = objectMapper.readValue(request.message(),
+        new TypeReference<>() {
+        });
+    assertThat("Unexpected message form name.", message.get("formName"),
+        is(FORM_NAME_VALUE));
+    assertThat("Unexpected message lifecycle state.", message.get("lifecycleState"),
+        is(FORM_LIFECYCLE_STATE_VALUE));
+    assertThat("Unexpected message trainee Id.", message.get("traineeId"),
+        is(FORM_TRAINEE_VALUE));
+    assertThat("Unexpected message form type.", message.get("formType"),
+        is(FORM_TYPE_VALUE));
+    assertThat("Unexpected message event date.", message.get("eventDate"),
+        is(notNullValue()));
+
+    LinkedHashMap<?, ?> formContent
+        = objectMapper.convertValue(message.get("formContentDto"), LinkedHashMap.class);
+    assertThat("Unexpected message form content.",
+        formContent.get(FORM_CONTENT_FIELD), is(FORM_CONTENT_FIELD_VALUE));
+
+    Map<String, MessageAttributeValue> messageAttributes = request.messageAttributes();
+    assertThat("Unexpected message attribute value.",
+        messageAttributes.get("event_type").stringValue(), is(MESSAGE_ATTRIBUTE));
+    assertThat("Unexpected message attribute data type.",
+        messageAttributes.get("event_type").dataType(), is("String"));
+
+    verifyNoMoreInteractions(snsClient);
   }
 
   @Test

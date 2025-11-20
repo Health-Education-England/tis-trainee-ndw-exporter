@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.time.Instant;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ import software.amazon.awssdk.services.sns.model.SnsException;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties;
 import uk.nhs.hee.tis.trainee.ndw.config.EventNotificationProperties.SnsRoute;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormBroadcastEventDto;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 
 /**
  * A service for broadcasting form events to SNS.
@@ -52,6 +54,27 @@ public class FormBroadcastService {
       EventNotificationProperties eventNotificationProperties) {
     this.snsClient = snsClient;
     this.eventNotificationProperties = eventNotificationProperties;
+  }
+
+  /**
+   * Broadcast a form event using the form broadcast service.
+   *
+   * @param formName       The name of the form.
+   * @param formType       The type of the form (e.g. formr-a, formr-b).
+   * @param traineeId      The trainee TIS ID.
+   * @param lifecycleState The lifecycle state of the form (e.g. SUBMITTED, DELETED).
+   * @param formContentDto The form content.
+   */
+  public void broadcastFormEvent(String formName, String formType, String traineeId,
+                                  String lifecycleState, FormContentDto formContentDto) {
+    if (formContentDto != null) {
+      log.info("Broadcasting event for form {}", formName);
+      FormBroadcastEventDto formBroadcastEventDto = new FormBroadcastEventDto(
+          formName, lifecycleState, traineeId, formType, Instant.now(), formContentDto);
+      publishFormBroadcastEvent(formBroadcastEventDto);
+    } else {
+      log.warn("No content in form {} of type {}, skipping event broadcast.", formName, formType);
+    }
   }
 
   /**

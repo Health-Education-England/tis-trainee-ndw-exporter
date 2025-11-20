@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
 
 /**
@@ -47,8 +48,8 @@ public class JsonFormService extends AbstractFormService<JsonFormEventDto> {
   }
 
   @Override
-  public void processFormEvent(JsonFormEventDto event) {
+  public FormContentDto processFormEvent(JsonFormEventDto event) {
     log.info("Processing form event for {}", event);
-    exportToDataLake(event.getFormName(), event.getFormType(), event);
+    return exportToDataLake(event.getFormName(), event.getFormType(), event);
   }
 }

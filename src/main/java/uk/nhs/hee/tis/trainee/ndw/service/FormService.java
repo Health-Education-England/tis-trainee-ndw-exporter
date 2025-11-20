@@ -22,6 +22,7 @@
 package uk.nhs.hee.tis.trainee.ndw.service;
 
 import java.io.IOException;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormEventDto;
 
 /**
@@ -33,8 +34,8 @@ public interface FormService<T extends FormEventDto> {
    * Process the given form Event.
    *
    * @param event The form event to process.
-   * @throws IOException when the form contents could not be read, or were not correctly
-   *                     structured.
+   * @return The form content DTO.
+   * @throws IOException when the form contents could not be read, or were not correctly structured.
    */
-  void processFormEvent(T event) throws IOException;
+  FormContentDto processFormEvent(T event) throws IOException;
 }

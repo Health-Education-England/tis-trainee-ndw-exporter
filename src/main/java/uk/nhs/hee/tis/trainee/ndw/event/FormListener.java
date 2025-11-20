@@ -28,8 +28,10 @@ import org.apache.logging.log4j.util.Strings;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.stereotype.Component;
+import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
+import uk.nhs.hee.tis.trainee.ndw.service.FormBroadcastService;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 
 /**
@@ -41,11 +43,13 @@ public class FormListener {
 
   private final FormService<S3FormEventDto> s3FormService;
   private final FormService<JsonFormEventDto> jsonFormService;
+  private final FormBroadcastService formBroadcastService;
 
   FormListener(FormService<S3FormEventDto> s3FormService,
-      FormService<JsonFormEventDto> jsonFormService) {
+      FormService<JsonFormEventDto> jsonFormService, FormBroadcastService formBroadcastService) {
     this.s3FormService = s3FormService;
     this.jsonFormService = jsonFormService;
+    this.formBroadcastService = formBroadcastService;
   }
 
   /**
@@ -94,11 +98,18 @@ public class FormListener {
     }
 
     log.debug("Received FormR event for form ID {}.", id);
-    event.setFormName(id + ".json");
+    String formName = id + ".json";
+    event.setFormName(formName);
     if (attributes.get("formType") == null) {
       throw new IllegalArgumentException("Trigger attribute must not be null.");
     }
-    event.setFormType((String) attributes.get("formType")); //should be formr-a or formr-b
-    jsonFormService.processFormEvent(event);
+
+    String formType = (String) attributes.get("formType"); //should be formr-a or formr-b
+    String traineeId = (String) event.fields.get("traineeTisId");
+    String lifecycleState = (String) event.fields.get("lifecycleState");
+    event.setFormType(formType);
+    FormContentDto formContentDto = jsonFormService.processFormEvent(event);
+    formBroadcastService.broadcastFormEvent(formName, formType, traineeId, lifecycleState,
+        formContentDto);
   }
 }
