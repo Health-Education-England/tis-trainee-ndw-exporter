@@ -43,33 +43,20 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
-import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.service.FormBroadcastService;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 
 class FormListenerTest {
 
   private FormListener listener;
-  private FormService<S3FormEventDto> s3Service;
   private FormService<JsonFormEventDto> jsonService;
   private FormBroadcastService formBroadcastService;
 
   @BeforeEach
   void setUp() {
-    s3Service = mock(FormService.class);
     jsonService = mock(FormService.class);
     formBroadcastService = mock(FormBroadcastService.class);
-    listener = new FormListener(s3Service, jsonService, formBroadcastService);
-  }
-
-  @Test
-  void shouldProcessS3Event() throws IOException {
-    S3FormEventDto event = new S3FormEventDto();
-
-    listener.getS3FormEvent(event);
-
-    verify(s3Service).processFormEvent(event);
-    verifyNoInteractions(formBroadcastService);
+    listener = new FormListener(jsonService, formBroadcastService);
   }
 
   @Test

@@ -10,7 +10,6 @@ application:
     sqs:
       action: ${local.sqs-path}/tis-trainee-ndw-local-action-event
       form:
-        s3: ${local.sqs-path}/tis-trainee-ndw-local-form-event
         ltft: ${local.sqs-path}/tis-trainee-ndw-local-ltft-form-event
         formr: ${local.sqs-path}/tis-trainee-ndw-local-formr-form-event
       notification: ${local.sqs-path}/tis-trainee-ndw-local-notification-event
@@ -28,5 +27,3 @@ spring:
       endpoint: http://${LOCALSTACK_HOST:localhost}:4566
       region:
         static: eu-west-2
-      s3:
-        path-style-access-enabled: true

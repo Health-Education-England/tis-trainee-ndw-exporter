@@ -30,39 +30,23 @@ import org.springframework.messaging.MessageHeaders;
 import org.springframework.stereotype.Component;
 import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
-import uk.nhs.hee.tis.trainee.ndw.dto.S3FormEventDto;
 import uk.nhs.hee.tis.trainee.ndw.service.FormBroadcastService;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 
 /**
- * A listener for S3 Form Events.
+ * A listener for Form Events.
  */
 @Slf4j
 @Component
 public class FormListener {
 
-  private final FormService<S3FormEventDto> s3FormService;
   private final FormService<JsonFormEventDto> jsonFormService;
   private final FormBroadcastService formBroadcastService;
 
-  FormListener(FormService<S3FormEventDto> s3FormService,
+  FormListener(
       FormService<JsonFormEventDto> jsonFormService, FormBroadcastService formBroadcastService) {
-    this.s3FormService = s3FormService;
     this.jsonFormService = jsonFormService;
     this.formBroadcastService = formBroadcastService;
-  }
-
-  /**
-   * Listen for S3 Events on the SQS queue.
-   *
-   * @param event the S3 Event
-   * @throws IOException when the form contents could not be read, or were not correctly
-   *                     structured.
-   */
-  @SqsListener(value = "${application.aws.sqs.form.s3}")
-  void getS3FormEvent(S3FormEventDto event) throws IOException {
-    log.debug("Received S3 form event {}.", event);
-    s3FormService.processFormEvent(event);
   }
 
   /**
