@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "uk.nhs.hee.tis.trainee"
-version = "1.7.1"
+version = "1.8.0"
 
 configurations {
   compileOnly {
@@ -49,7 +49,6 @@ dependencies {
   // Sentry reporting
   implementation(libs.bundles.sentry)
 
-  implementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
   implementation("io.awspring.cloud:spring-cloud-aws-starter-sns")
   implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
 
