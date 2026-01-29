@@ -29,8 +29,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.Map;
@@ -41,22 +39,18 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
-import uk.nhs.hee.tis.trainee.ndw.dto.FormContentDto;
 import uk.nhs.hee.tis.trainee.ndw.dto.JsonFormEventDto;
-import uk.nhs.hee.tis.trainee.ndw.service.FormBroadcastService;
 import uk.nhs.hee.tis.trainee.ndw.service.FormService;
 
 class FormListenerTest {
 
   private FormListener listener;
   private FormService<JsonFormEventDto> jsonService;
-  private FormBroadcastService formBroadcastService;
 
   @BeforeEach
   void setUp() {
     jsonService = mock(FormService.class);
-    formBroadcastService = mock(FormBroadcastService.class);
-    listener = new FormListener(jsonService, formBroadcastService);
+    listener = new FormListener(jsonService);
   }
 
   @Test
@@ -80,8 +74,6 @@ class FormListenerTest {
     assertThat("Unexpected form ID.", eventContent.get("id"), is("123"));
     assertThat("Unexpected trainee ID.", eventContent.get("traineeTisId"), is("47165"));
     assertThat("Unexpected form field.", eventContent.get("field1"), is("value1"));
-
-    verifyNoInteractions(formBroadcastService);
   }
 
   @ParameterizedTest
@@ -95,7 +87,6 @@ class FormListenerTest {
     assertThrows(IllegalArgumentException.class, () -> listener.getLtftFormEvent(event));
 
     verify(jsonService, never()).processFormEvent(any());
-    verifyNoInteractions(formBroadcastService);
   }
 
   @Test
@@ -123,8 +114,6 @@ class FormListenerTest {
     assertThat("Unexpected form ID.", eventContent.get("id"), is("456"));
     assertThat("Unexpected trainee ID.", eventContent.get("traineeTisId"), is("12345"));
     assertThat("Unexpected form field.", eventContent.get("field2"), is("value2"));
-
-    verify(formBroadcastService).broadcastFormEvent(any(), any(), any(), any(), any());
   }
 
   @Test
@@ -144,27 +133,6 @@ class FormListenerTest {
 
     JsonFormEventDto capturedEvent = eventCaptor.getValue();
     assertThat("Unexpected form type.", capturedEvent.getFormType(), is("formr-b"));
-
-    verify(formBroadcastService).broadcastFormEvent(any(), any(), any(), any(), any());
-  }
-
-  @Test
-  void shouldBroadcastFormREvent() throws IOException {
-    JsonFormEventDto event = new JsonFormEventDto();
-    event.set("id", "456");
-    event.set("traineeTisId", "12345");
-    event.set("lifecycleState", "SUBMITTED");
-
-    Message<JsonFormEventDto> message = MessageBuilder.withPayload(event)
-        .setHeader("formType", "formr-a")
-        .build();
-
-    FormContentDto mockFormContentDto = new FormContentDto();
-    when(jsonService.processFormEvent(any())).thenReturn(mockFormContentDto);
-    listener.getFormRFormEvent(message);
-
-    verify(formBroadcastService).broadcastFormEvent("456.json", "formr-a",
-        "12345", "SUBMITTED", mockFormContentDto);
   }
 
   @ParameterizedTest
@@ -181,7 +149,6 @@ class FormListenerTest {
     assertThrows(IllegalArgumentException.class, () -> listener.getFormRFormEvent(message));
 
     verify(jsonService, never()).processFormEvent(any());
-    verifyNoInteractions(formBroadcastService);
   }
 
   @Test
@@ -195,6 +162,5 @@ class FormListenerTest {
     assertThrows(IllegalArgumentException.class, () -> listener.getFormRFormEvent(message));
 
     verify(jsonService, never()).processFormEvent(any());
-    verifyNoInteractions(formBroadcastService);
   }
 }
