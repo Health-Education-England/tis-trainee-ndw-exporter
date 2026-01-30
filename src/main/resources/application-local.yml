@@ -3,10 +3,6 @@ application:
   file-store:
     bucket: tis-trainee-documents-upload-local
   aws:
-    sns:
-      form-updated-event:
-        arn: arn:aws:sns:eu-west-2:${local.account-id}:tis-trainee-update-form-event
-        message-attribute: FORM_R
     sqs:
       action: ${local.sqs-path}/tis-trainee-ndw-local-action-event
       form:
